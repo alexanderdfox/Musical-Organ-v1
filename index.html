@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Sacred Heart Collection | Devotional Web Apps</title>
+	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Playfair+Display:wght@700&display=swap');
+
+		body {
+			margin: 0;
+			padding: 0;
+			background: linear-gradient(135deg, #1a0a0a, #0f1a2a);
+			color: #ffd700;
+			font-family: 'Cinzel', serif;
+			min-height: 100vh;
+		}
+
+		.container {
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 40px 20px;
+		}
+
+		header {
+			text-align: center;
+			margin-bottom: 50px;
+		}
+
+		h1 {
+			font-family: 'Playfair Display', serif;
+			font-size: 3.2rem;
+			margin: 0 0 10px 0;
+			text-shadow: 0 0 40px #ff4444;
+			color: #ffdddd;
+		}
+
+		.subtitle {
+			font-size: 1.3rem;
+			opacity: 0.9;
+			font-style: italic;
+		}
+
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+			gap: 25px;
+		}
+
+		.card {
+			background: rgba(30, 10, 10, 0.85);
+			border: 3px solid #b8860b;
+			border-radius: 16px;
+			overflow: hidden;
+			transition: all 0.3s ease;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+		}
+
+		.card:hover {
+			transform: translateY(-12px);
+			box-shadow: 0 20px 40px rgba(255, 80, 80, 0.4);
+			border-color: #ffd700;
+		}
+
+		.card-header {
+			background: linear-gradient(#8b0000, #4a0000);
+			padding: 20px;
+			text-align: center;
+		}
+
+		.card-title {
+			font-size: 1.5rem;
+			margin: 0;
+			color: #ffd700;
+		}
+
+		.card-body {
+			padding: 20px;
+		}
+
+		.card-description {
+			color: #ffdddd;
+			line-height: 1.6;
+			margin-bottom: 20px;
+		}
+
+		.btn {
+			display: inline-block;
+			background: linear-gradient(#ffd700, #b8860b);
+			color: #4a0000;
+			padding: 12px 28px;
+			border-radius: 8px;
+			text-decoration: none;
+			font-weight: bold;
+			transition: all 0.2s;
+		}
+
+		.btn:hover {
+			background: linear-gradient(#ffed9e, #d4a017);
+			transform: scale(1.05);
+		}
+
+		footer {
+			text-align: center;
+			margin-top: 80px;
+			padding: 30px;
+			opacity: 0.7;
+			font-size: 0.95rem;
+		}
+
+		.badge {
+			display: inline-block;
+			background: #4a0000;
+			color: #ffd700;
+			padding: 4px 12px;
+			border-radius: 20px;
+			font-size: 0.8rem;
+			margin-top: 10px;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<header>
+			<h1>Sacred Heart Collection</h1>
+			<p class="subtitle">Devotional Interactive Web Experiences</p>
+		</header>
+
+		<div class="grid">
+			
+			<!-- Main Organ -->
+			<div class="card">
+				<div class="card-header">
+					<h2 class="card-title">❤️ Sacred Heart Pipe Organ Version 1</h2>
+				</div>
+				<div class="card-body">
+					<p class="card-description">
+						A majestic interactive pipe organ shaped like the Immaculate Heart of Jesus. 
+						Features rich organ sound, animated flames.
+					</p>
+					<a href="v1.html" class="btn">Open Organ →</a>
+					<div class="badge">Main Project</div>
+				</div>
+			</div>
+
+			<!-- Yo-Yo Newton's Cradle -->
+			<div class="card">
+				<div class="card-header">
+					<h2 class="card-title">❤️ Sacred Heart Pipe Organ Version 2</h2>
+				</div>
+				<div class="card-body">
+					<p class="card-description">
+						A majestic interactive pipe organ shaped like the Immaculate Heart of Jesus. 
+						Features rich organ sound, animated flames, 6 sacred hymns, custom melodies, and MIDI support.
+					</p>
+					<a href="v2.html" class="btn">Open Organ →</a>
+				</div>
+			</div>
+
+			<!-- Add more HTML files here in the future -->
+			<!-- 
+			<div class="card">
+				<div class="card-header">
+					<h2 class="card-title">Title Here</h2>
+				</div>
+				<div class="card-body">
+					<p class="card-description">Description of the project...</p>
+					<a href="filename.html" class="btn">Open →</a>
+				</div>
+			</div>
+			-->
+
+		</div>
+
+		<footer>
+			<p>Made with reverence • Pure HTML • CSS • JavaScript</p>
+			<p>Perfect for devotional use and GitHub version control</p>
+		</footer>
+	</div>
+</body>
+</html>
