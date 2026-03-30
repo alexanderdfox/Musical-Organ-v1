@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Sacred Heart Pipe Organ</title>
+	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:wght@700&display=swap');
+
+		body {
+			margin: 0;
+			height: 100vh;
+			background: radial-gradient(circle at center, #2a0a0a, #0a0a1f);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			overflow: hidden;
+			font-family: 'Cinzel', serif;
+			color: #ffd700;
+		}
+
+		.container {
+			text-align: center;
+		}
+
+		h1 {
+			font-family: 'Playfair Display', serif;
+			font-size: 3rem;
+			margin-bottom: 8px;
+			text-shadow: 0 0 30px #ff3333, 0 0 60px #ffd700;
+			letter-spacing: 6px;
+		}
+
+		.subtitle {
+			font-size: 1.1rem;
+			margin-bottom: 25px;
+			opacity: 0.9;
+			font-style: italic;
+		}
+
+		#canvas {
+			border: 12px solid #4a2c0f;
+			border-image: linear-gradient(#ffd700, #b8860b) 1;
+			border-radius: 20px;
+			box-shadow: 
+				0 0 0 15px #1a0f00,
+				0 0 80px rgba(255, 80, 80, 0.7),
+				inset 0 0 80px rgba(255, 215, 0, 0.25);
+			background: #0f0505;
+		}
+
+		.controls {
+			margin-top: 25px;
+			display: flex;
+			gap: 15px;
+			justify-content: center;
+			flex-wrap: wrap;
+		}
+
+		button {
+			background: linear-gradient(#8b0000, #4a0000);
+			color: #ffd700;
+			border: 3px solid #ffd700;
+			padding: 14px 28px;
+			font-family: 'Cinzel', serif;
+			font-size: 1.05rem;
+			cursor: pointer;
+			box-shadow: 0 6px 0 #2a0000;
+			transition: all 0.1s;
+			min-width: 140px;
+		}
+
+		button:active {
+			transform: translateY(4px);
+			box-shadow: 0 2px 0 #2a0000;
+		}
+
+		.info {
+			margin-top: 20px;
+			font-size: 0.9rem;
+			max-width: 720px;
+			opacity: 0.85;
+			line-height: 1.5;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>COR JESU</h1>
+		<div class="subtitle">The Immaculate Heart Pipe Organ</div>
+		
+		<canvas id="canvas" width="920" height="620"></canvas>
+		
+		<div class="controls">
+			<button id="chord">PLAY CHORD</button>
+			<button id="corjesu">COR JESU</button>
+			<button id="avemaria">AVE MARIA</button>
+			<button id="stop">STOP</button>
+			<button id="reset">RESET</button>
+		</div>
+		
+		<div class="info">
+			Click or drag the lower keys to play • Sacred organ sound with natural envelope<br>
+			Auto songs: "Cor Jesu" (original) • "Ave Maria" (simplified theme)
+		</div>
+	</div>
+
+	<script>
+		const canvas = document.getElementById('canvas');
+		const ctx = canvas.getContext('2d');
+		
+		let heartX = canvas.width / 2;
+		let heartY = 260;
+		let heartScale = 1;
+		let flameIntensity = 0;
+		let pipes = [];
+		let keys = [];
+		
+		let audioContext;
+		let isPlayingSong = false;
+		let songTimeoutIds = [];
+		
+		function initAudio() {
+			if (!audioContext) {
+				audioContext = new (window.AudioContext || window.webkitAudioContext)();
+			}
+		}
+		
+		// Better organ-like note player
+		function playNote(freq, duration = 800, velocity = 0.6) {
+			if (!audioContext) return;
+			
+			const now = audioContext.currentTime;
+			
+			// Main oscillator (warm sawtooth for organ pipes)
+			const osc1 = audioContext.createOscillator();
+			osc1.type = 'sawtooth';
+			osc1.frequency.value = freq;
+			
+			// Secondary sine for warmth
+			const osc2 = audioContext.createOscillator();
+			osc2.type = 'sine';
+			osc2.frequency.value = freq * 2;
+			
+			const gain = audioContext.createGain();
+			const filter = audioContext.createBiquadFilter();
+			filter.type = 'lowpass';
+			filter.frequency.value = 1800;
+			
+			// Envelope: slow attack, long decay (pipe organ feel)
+			gain.gain.setValueAtTime(0.001, now);
+			gain.gain.linearRampToValueAtTime(velocity, now + 0.08);   // attack
+			gain.gain.linearRampToValueAtTime(velocity * 0.6, now + duration / 1000 * 0.7);
+			gain.gain.linearRampToValueAtTime(0.001, now + duration / 1000);
+			
+			osc1.connect(filter);
+			osc2.connect(filter);
+			filter.connect(gain);
+			gain.connect(audioContext.destination);
+			
+			osc1.start(now);
+			osc2.start(now);
+			
+			osc1.stop(now + duration / 1000 + 0.1);
+			osc2.stop(now + duration / 1000 + 0.1);
+		}
+		
+		function playChord() {
+			initAudio();
+			const base = 261.63; // C4
+			const chord = [base, base * 1.2599, base * 1.4983, base * 1.6818]; // C E G B (C major 7th-ish)
+			chord.forEach((f, i) => {
+				setTimeout(() => playNote(f, 1400, 0.55), i * 40);
+			});
+			flameIntensity = 1.8;
+		}
+		
+		// Simple melody player
+		function playSong(notes) {  // notes = array of {freq, duration}
+			if (isPlayingSong) return;
+			initAudio();
+			isPlayingSong = true;
+			let time = 0;
+			
+			notes.forEach(note => {
+				const id = setTimeout(() => {
+					playNote(note.freq, note.duration, 0.65);
+					flameIntensity = Math.min(2.2, flameIntensity + 0.6);
+					// Light up a random pipe
+					if (pipes.length) pipes[Math.floor(Math.random() * pipes.length)].glow = 1.4;
+				}, time);
+				songTimeoutIds.push(id);
+				time += note.duration * 0.92; // slight overlap for legato feel
+			});
+			
+			// End song
+			setTimeout(() => {
+				isPlayingSong = false;
+			}, time + 800);
+		}
+		
+		// "Cor Jesu" – reverent original melody (in C major)
+		function playCorJesu() {
+			const melody = [
+				{freq: 261.63, duration: 600}, // C4
+				{freq: 329.63, duration: 600}, // E4
+				{freq: 392.00, duration: 900}, // G4
+				{freq: 329.63, duration: 400},
+				{freq: 261.63, duration: 1200},
+				
+				{freq: 440.00, duration: 600}, // A4
+				{freq: 392.00, duration: 600},
+				{freq: 329.63, duration: 900},
+				{freq: 392.00, duration: 400},
+				{freq: 523.25, duration: 1200}, // C5
+				
+				{freq: 392.00, duration: 800},
+				{freq: 329.63, duration: 800},
+				{freq: 261.63, duration: 1600}
+			];
+			playSong(melody);
+		}
+		
+		// Simplified "Ave Maria" theme (Schubert/Gounod style – main rising motif)
+		function playAveMaria() {
+			const melody = [
+				{freq: 523.25, duration: 800}, // C5
+				{freq: 587.33, duration: 400}, // D5
+				{freq: 659.25, duration: 1200},// E5
+				{freq: 698.46, duration: 600}, // F5
+				{freq: 659.25, duration: 600},
+				{freq: 587.33, duration: 800},
+				
+				{freq: 523.25, duration: 400},
+				{freq: 659.25, duration: 1200},
+				{freq: 784.00, duration: 800}, // G5
+				{freq: 880.00, duration: 600}, // A5
+				{freq: 784.00, duration: 1400}
+			];
+			playSong(melody);
+		}
+		
+		function stopSong() {
+			songTimeoutIds.forEach(id => clearTimeout(id));
+			songTimeoutIds = [];
+			isPlayingSong = false;
+		}
+		
+		// Pipe & visual setup (unchanged from previous version)
+		function initPipes() {
+			pipes = [];
+			const numPipes = 13;
+			const startX = heartX - 280;
+			for (let i = 0; i < numPipes; i++) {
+				const x = startX + i * 45;
+				const height = 170 + Math.abs(i - numPipes/2) * -28 + Math.random() * 35;
+				pipes.push({ x: x, height: height, glow: 0 });
+			}
+		}
+		
+		function initKeys() {
+			keys = [];
+			const numKeys = 14;
+			const baseY = 480;
+			for (let i = 0; i < numKeys; i++) {
+				const offset = (i - numKeys/2) * 0.6;
+				keys.push({
+					x: heartX - 260 + i * 38,
+					y: baseY + offset * 12,
+					width: 32,
+					height: 92,
+					pressed: false,
+					freq: 220 * Math.pow(2, (i - 5) / 12)   // A3 base, chromatic
+				});
+			}
+		}
+		
+		function drawSacredHeart() {
+			ctx.save();
+			ctx.translate(heartX, heartY);
+			ctx.scale(heartScale, heartScale);
+			
+			ctx.fillStyle = '#8b0000';
+			ctx.strokeStyle = '#ffd700';
+			ctx.lineWidth = 18;
+			ctx.beginPath();
+			ctx.moveTo(0, 80);
+			ctx.bezierCurveTo(-110, -40, -140, 60, 0, 160);
+			ctx.bezierCurveTo(140, 60, 110, -40, 0, 80);
+			ctx.fill();
+			ctx.stroke();
+			
+			ctx.fillStyle = '#ff4444';
+			ctx.beginPath();
+			ctx.moveTo(0, 95);
+			ctx.bezierCurveTo(-85, 10, -105, 75, 0, 135);
+			ctx.bezierCurveTo(105, 75, 85, 10, 0, 95);
+			ctx.fill();
+			
+			// Crown of Thorns
+			ctx.strokeStyle = '#b8860b';
+			ctx.lineWidth = 12;
+			ctx.beginPath();
+			ctx.arc(0, 35, 95, Math.PI * 0.7, Math.PI * 2.3);
+			ctx.stroke();
+			
+			// Golden Cross
+			ctx.fillStyle = '#ffd700';
+			ctx.fillRect(-12, -68, 24, 58);
+			ctx.fillRect(-36, -50, 72, 18);
+			
+			// Lance wound
+			ctx.strokeStyle = '#4a0000';
+			ctx.lineWidth = 9;
+			ctx.beginPath();
+			ctx.moveTo(55, 95);
+			ctx.lineTo(88, 128);
+			ctx.stroke();
+			
+			// Divine flames
+			const flameAlpha = 0.7 + flameIntensity * 0.3;
+			ctx.fillStyle = `rgba(255, ${100 + flameIntensity*80}, 20, ${flameAlpha})`;
+			for (let i = 0; i < 6; i++) {
+				const fx = -38 + i * 13;
+				ctx.beginPath();
+				ctx.ellipse(fx, -30 - flameIntensity*22, 19 + i*1.5, 48 + flameIntensity*32, 0, 0, Math.PI*2);
+				ctx.fill();
+			}
+			ctx.restore();
+		}
+		
+		function drawPipes() {
+			pipes.forEach(pipe => {
+				const glow = Math.max(0, pipe.glow);
+				ctx.fillStyle = '#c0c0c0';
+				ctx.fillRect(pipe.x - 14, heartY - pipe.height - 42, 28, pipe.height);
+				
+				ctx.fillStyle = '#b8860b';
+				ctx.fillRect(pipe.x - 18, heartY - pipe.height - 58, 36, 24);
+				
+				ctx.fillStyle = `rgba(255,255,200,${0.5 + glow})`;
+				ctx.fillRect(pipe.x - 11, heartY - pipe.height - 48, 9, pipe.height);
+				
+				pipe.glow *= 0.89;
+			});
+		}
+		
+		function drawKeys() {
+			keys.forEach(key => {
+				ctx.save();
+				ctx.translate(key.x, key.y);
+				
+				ctx.fillStyle = key.pressed ? '#4a0000' : '#eee';
+				ctx.fillRect(-key.width/2, -key.height/2, key.width, key.height);
+				
+				ctx.strokeStyle = '#ffd700';
+				ctx.lineWidth = 4;
+				ctx.strokeRect(-key.width/2 + 4, -key.height/2 + 4, key.width - 8, key.height - 8);
+				
+				ctx.restore();
+			});
+		}
+		
+		function drawFrame() {
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			
+			const grad = ctx.createRadialGradient(heartX, heartY + 80, 120, heartX, heartY + 320, 520);
+			grad.addColorStop(0, 'rgba(255, 90, 90, 0.14)');
+			grad.addColorStop(1, 'transparent');
+			ctx.fillStyle = grad;
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			
+			drawPipes();
+			drawSacredHeart();
+			drawKeys();
+			
+			heartScale = 1 + Math.sin(Date.now() / 900) * 0.014;
+			flameIntensity = Math.max(0, flameIntensity * 0.86);
+		}
+		
+		function animate() {
+			drawFrame();
+			requestAnimationFrame(animate);
+		}
+		
+		// Mouse / touch interaction
+		let isDragging = false;
+		
+		canvas.addEventListener('mousedown', e => {
+			initAudio();
+			const rect = canvas.getBoundingClientRect();
+			const mx = e.clientX - rect.left;
+			const my = e.clientY - rect.top;
+			
+			keys.forEach(key => {
+				if (Math.abs(mx - key.x) < key.width/2 + 6 && Math.abs(my - key.y) < key.height/2 + 10) {
+					key.pressed = true;
+					playNote(key.freq, 1200, 0.7);
+					flameIntensity = 1.3;
+					if (pipes.length) pipes[Math.floor(Math.random()*pipes.length)].glow = 1.1;
+				}
+			});
+		});
+		
+		canvas.addEventListener('mousemove', e => {
+			if (!isDragging) return;
+			// Optional: add continuous drag playing if desired
+		});
+		
+		window.addEventListener('mouseup', () => {
+			keys.forEach(k => k.pressed = false);
+		});
+		
+		// Button handlers
+		document.getElementById('chord').addEventListener('click', playChord);
+		
+		document.getElementById('corjesu').addEventListener('click', () => {
+			stopSong();
+			playCorJesu();
+		});
+		
+		document.getElementById('avemaria').addEventListener('click', () => {
+			stopSong();
+			playAveMaria();
+		});
+		
+		document.getElementById('stop').addEventListener('click', () => {
+			stopSong();
+			flameIntensity = 0.3;
+		});
+		
+		document.getElementById('reset').addEventListener('click', () => {
+			stopSong();
+			flameIntensity = 0;
+			keys.forEach(k => k.pressed = false);
+			pipes.forEach(p => p.glow = 0);
+		});
+		
+		// Keyboard shortcuts
+		window.addEventListener('keydown', e => {
+			if (e.key === " ") {
+				playChord();
+			}
+			if (e.key.toLowerCase() === "c") {
+				document.getElementById('corjesu').click();
+			}
+			if (e.key.toLowerCase() === "a") {
+				document.getElementById('avemaria').click();
+			}
+			if (e.key.toLowerCase() === "s") {
+				document.getElementById('stop').click();
+			}
+		});
+		
+		// Initialize everything
+		initPipes();
+		initKeys();
+		animate();
+		
+		console.log('%c❤️ Sacred Heart Pipe Organ – improved organ sound + auto hymns ready', 'color:#ff5555; font-family:serif');
+	</script>
+</body>
+</html>
