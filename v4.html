@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sacred Heart Pipe Organ</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:wght@700&display=swap');
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 0;
+	min-height: 100dvh;
+	background: radial-gradient(circle at center, #2a0a0a, #0a0a1f);
+	font-family: 'Cinzel', serif;
+	color: #ffd700;
+	touch-action: manipulation;
+}
+.container {
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 20px 12px 40px;
+	text-align: center;
+}
+h1 {
+	font-family: 'Playfair Display', serif;
+	font-size: clamp(2.4rem, 9vw, 3.4rem);
+	margin: 10px 0 8px;
+	text-shadow: 0 0 30px #ff3333, 0 0 60px #ffd700;
+	letter-spacing: 4px;
+}
+.subtitle {
+	font-size: 1.05rem;
+	margin-bottom: 25px;
+	opacity: 0.9;
+	font-style: italic;
+}
+#canvas {
+	width: 100%;
+	max-width: 920px;
+	height: auto;
+	border: 10px solid #4a2c0f;
+	border-image: linear-gradient(#ffd700, #b8860b) 1;
+	border-radius: 18px;
+	box-shadow: 0 0 0 12px #1a0f00,
+				0 0 70px rgba(255, 80, 80, 0.65),
+				inset 0 0 60px rgba(255, 215, 0, 0.2);
+	background: #0f0505;
+	display: block;
+	margin: 0 auto 25px;
+	touch-action: none;
+}
+.controls {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+	flex-wrap: wrap;
+	margin-bottom: 15px;
+}
+button {
+	background: linear-gradient(#8b0000, #4a0000);
+	color: #ffd700;
+	border: 3px solid #ffd700;
+	padding: 14px 22px;
+	font-family: 'Cinzel', serif;
+	font-size: 1.02rem;
+	cursor: pointer;
+	box-shadow: 0 6px 0 #2a0000;
+	border-radius: 6px;
+	min-width: 130px;
+}
+button:active {
+	transform: translateY(4px);
+	box-shadow: 0 2px 0 #2a0000;
+}
+#midi-status { margin: 8px 0; font-size: 0.95rem; }
+.select-container { margin: 12px 0; }
+#organ-stop {
+	background: linear-gradient(#4a0000, #2a0000);
+	color: #ffd700;
+	border: 3px solid #ffd700;
+	padding: 12px 20px;
+	font-family: 'Cinzel', serif;
+	font-size: 1.05rem;
+	border-radius: 6px;
+}
+.preset-section {
+	background: rgba(0,0,0,0.45);
+	border-radius: 14px;
+	padding: 18px;
+	margin: 20px auto;
+	max-width: 720px;
+	display: none;
+}
+.import-section {
+	background: rgba(0,0,0,0.45);
+	border-radius: 14px;
+	padding: 18px;
+	margin: 20px auto;
+	max-width: 720px;
+}
+.info {
+	margin-top: 25px;
+	font-size: 0.88rem;
+	opacity: 0.85;
+	line-height: 1.6;
+}
+</style>
+</head>
+<body>
+<div class="container">
+	<h1>COR JESU</h1>
+	<div class="subtitle">The Immaculate Heart Pipe Organ</div>
+	
+	<canvas id="canvas" width="920" height="620"></canvas>
+	
+	<div class="controls">
+		<button id="chord">CHORD</button>
+		<button id="corjesu">COR JESU</button>
+		<button id="avemaria">AVE MARIA</button>
+		<button id="tantum">TANTUM ERGO</button>
+		<button id="panis">PANIS ANGELICUS</button>
+		<button id="amazing">AMAZING GRACE</button>
+		<button id="stop">STOP</button>
+		<button id="reset">RESET</button>
+		<button id="midi-connect">🎹 Connect MIDI</button>
+	</div>
+
+	<div id="midi-status">MIDI Device: Not connected</div>
+
+	<div class="select-container">
+		<label for="organ-stop"><strong>Organ Voice:</strong></label><br>
+		<select id="organ-stop">
+			<option value="diapason">Diapason (Principal)</option>
+			<option value="flute">Flute (Warm)</option>
+			<option value="reed">Reed (Trumpet)</option>
+			<option value="string">String (Viola)</option>
+			<option value="full">Full Chorus</option>
+			<option value="piano">🎹 Piano</option>
+			<option value="custom">Custom Preset</option>
+		</select>
+	</div>
+
+	<div class="preset-section" id="custom-presets">
+		<h3>Custom Organ Preset</h3>
+		<label>Osc1: <span id="osc1-val">sawtooth</span></label>
+		<input type="range" id="osc1" min="0" max="3" value="0">
+		<label>Osc2: <span id="osc2-val">sine</span></label>
+		<input type="range" id="osc2" min="0" max="3" value="1">
+		<label>Filter (Hz): <span id="filter-val">2600</span></label>
+		<input type="range" id="filter" min="800" max="6000" value="2600" step="50">
+		<label>Detune: <span id="detune-val">0</span></label>
+		<input type="range" id="detune" min="-30" max="30" value="0">
+		<div style="margin-top:12px;">
+			<button id="save-preset">Save Preset</button>
+			<button id="load-preset">Load Preset</button>
+		</div>
+	</div>
+
+	<div class="import-section">
+		<strong>Custom Melody (one note per line)</strong>
+		<textarea id="custom-input" placeholder="C4 800&#10;E4 600&#10;G4 1200&#10;A4 800"></textarea>
+		<div style="margin-top:12px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+			<button id="play-custom">▶ PLAY CUSTOM</button>
+			<label style="cursor:pointer; background:#4a0000; color:#ffd700; border:3px solid #ffd700; padding:14px 26px; border-radius:6px;">
+				📤 Import MIDI File
+				<input type="file" id="midi-upload" accept=".mid,.midi" style="display:none;">
+			</label>
+		</div>
+	</div>
+	
+	<div class="info">
+		Tap keys or use computer keyboard (A S D F G H J K L ; ' \ Z X)<br>
+		Real MIDI keyboards supported
+	</div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha: true });
+
+let heartX = canvas.width / 2;
+let heartY = 260;
+let heartScale = 1;
+let flameIntensity = 0;
+let pipes = [];
+let keys = [];
+let audioContext;
+let isPlayingSong = false;
+let songTimeoutIds = [];
+let currentStop = 'diapason';
+
+let customParams = { osc1: 'sawtooth', osc2: 'sine', filter: 2600, detune: 0 };
+
+const keyMap = {'a':0,'s':1,'d':2,'f':3,'g':4,'h':5,'j':6,'k':7,'l':8,';':9,"'":10,'\\':11,'z':12,'x':13};
+
+// ====================== AUDIO ======================
+function initAudio() {
+	if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+	if (audioContext.state === 'suspended') audioContext.resume();
+}
+
+function playNote(freq, duration = 800, velocity = 0.75) {
+	if (!audioContext) return;
+	const now = audioContext.currentTime;
+	const osc1 = audioContext.createOscillator();
+	const osc2 = audioContext.createOscillator();
+	const gain = audioContext.createGain();
+	const filter = audioContext.createBiquadFilter();
+
+	filter.type = 'lowpass';
+
+	if (currentStop === 'piano') {
+		osc1.type = 'triangle';
+		osc2.type = 'sine';
+		osc2.frequency.value = freq * 2.01;
+		filter.frequency.value = 2800;
+	} else if (currentStop === 'custom') {
+		osc1.type = customParams.osc1;
+		osc2.type = customParams.osc2;
+		osc1.detune.value = customParams.detune;
+		osc2.detune.value = -customParams.detune;
+		filter.frequency.value = customParams.filter;
+	} else {
+		switch(currentStop) {
+			case 'flute': osc1.type='sine'; osc2.type='triangle'; filter.frequency.value=1700; break;
+			case 'reed': osc1.type='sawtooth'; osc2.type='square'; filter.frequency.value=3400; break;
+			case 'string': osc1.type='sawtooth'; osc2.type='sawtooth'; filter.frequency.value=2100; break;
+			case 'full': osc1.type='sawtooth'; osc2.type='square'; filter.frequency.value=4000; break;
+			default: osc1.type='sawtooth'; osc2.type='sine'; filter.frequency.value=2600;
+		}
+		osc2.frequency.value = freq * 2;
+	}
+
+	osc1.frequency.value = freq;
+
+	gain.gain.setValueAtTime(0.001, now);
+	gain.gain.linearRampToValueAtTime(velocity, now + 0.05);
+	gain.gain.linearRampToValueAtTime(velocity * 0.48, now + duration/1000 * 0.7);
+	gain.gain.linearRampToValueAtTime(0.001, now + duration/1000 + 0.4);
+
+	osc1.connect(filter); osc2.connect(filter);
+	filter.connect(gain); gain.connect(audioContext.destination);
+
+	osc1.start(now); osc2.start(now);
+	osc1.stop(now + duration/1000 + 0.5);
+	osc2.stop(now + duration/1000 + 0.5);
+
+	flameIntensity = Math.min(3.5, flameIntensity + 1);
+}
+
+// ====================== HYMNS ======================
+const hymns = {
+	corjesu: [{freq:261.63,duration:600},{freq:329.63,duration:600},{freq:392,duration:1200},{freq:440,duration:600},{freq:392,duration:600},{freq:329.63,duration:1200},{freq:261.63,duration:800},{freq:293.66,duration:400},{freq:329.63,duration:800},{freq:392,duration:1600}],
+	avemaria: [{freq:523.25,duration:800},{freq:587.33,duration:400},{freq:659.25,duration:800},{freq:783.99,duration:1200},{freq:698.46,duration:600},{freq:659.25,duration:600},{freq:587.33,duration:800},{freq:523.25,duration:1600}],
+	tantum: [{freq:392,duration:600},{freq:440,duration:600},{freq:493.88,duration:600},{freq:523.25,duration:1200},{freq:493.88,duration:600},{freq:440,duration:600},{freq:392,duration:1200}],
+	panis: [{freq:349.23,duration:800},{freq:392,duration:400},{freq:440,duration:800},{freq:466.16,duration:1200},{freq:440,duration:800},{freq:392,duration:800},{freq:349.23,duration:1600}],
+	amazing: [{freq:392,duration:600},{freq:523.25,duration:900},{freq:659.25,duration:600},{freq:523.25,duration:600},{freq:659.25,duration:1200},{freq:587.33,duration:600},{freq:523.25,duration:900}]
+};
+
+function playSong(notes) {
+	if (isPlayingSong) return;
+	initAudio();
+	isPlayingSong = true;
+	let time = 0;
+	notes.forEach(n => {
+		const id = setTimeout(() => playNote(n.freq, n.duration || 800, 0.72), time);
+		songTimeoutIds.push(id);
+		time += (n.duration || 800) * 0.92;
+	});
+	setTimeout(() => isPlayingSong = false, time + 800);
+}
+
+function stopSong() {
+	songTimeoutIds.forEach(clearTimeout);
+	songTimeoutIds = [];
+	isPlayingSong = false;
+}
+
+// ====================== VISUALS (Original Style) ======================
+function initPipes() {
+	pipes = [];
+	const startX = heartX - 280;
+	for (let i = 0; i < 13; i++) {
+		const x = startX + i * 45;
+		const height = 170 + Math.abs(i - 6) * -28 + Math.random() * 35;
+		pipes.push({x, height, glow: 0});
+	}
+}
+
+function initKeys() {
+	keys = [];
+	const noteNames = ['C3','D3','E3','F3','G3','A3','B3','C4','D4','E4','F4','G4','A4','B4'];
+	for (let i = 0; i < 14; i++) {
+		keys.push({
+			x: heartX - 260 + i * 38,
+			y: 480,
+			width: 32,
+			height: 92,
+			pressed: false,
+			freq: 220 * Math.pow(2, (i - 5) / 12),
+			label: noteNames[i]
+		});
+	}
+}
+
+function drawSacredHeart() {
+	ctx.save();
+	ctx.translate(heartX, heartY);
+	ctx.scale(heartScale, heartScale);
+	ctx.fillStyle = '#8b0000';
+	ctx.strokeStyle = '#ffd700';
+	ctx.lineWidth = 18;
+	ctx.beginPath();
+	ctx.moveTo(0,80);
+	ctx.bezierCurveTo(-110,-40,-140,60,0,160);
+	ctx.bezierCurveTo(140,60,110,-40,0,80);
+	ctx.fill(); ctx.stroke();
+
+	ctx.fillStyle = '#ff4444';
+	ctx.beginPath();
+	ctx.moveTo(0,95);
+	ctx.bezierCurveTo(-85,10,-105,75,0,135);
+	ctx.bezierCurveTo(105,75,85,10,0,95);
+	ctx.fill();
+	ctx.restore();
+}
+
+function drawPipes() {
+	pipes.forEach(p => {
+		const g = Math.max(0, p.glow);
+		ctx.fillStyle = '#c0c0c0';
+		ctx.fillRect(p.x-14, heartY-p.height-42, 28, p.height);
+		ctx.fillStyle = '#b8860b';
+		ctx.fillRect(p.x-18, heartY-p.height-58, 36, 24);
+		ctx.fillStyle = `rgba(255,255,200,${0.5+g})`;
+		ctx.fillRect(p.x-11, heartY-p.height-48, 9, p.height);
+		p.glow *= 0.89;
+	});
+}
+
+function drawKeys() {
+	keys.forEach(k => {
+		ctx.save();
+		ctx.translate(k.x, k.y);
+		ctx.fillStyle = k.pressed ? '#4a0000' : '#eee';
+		ctx.fillRect(-k.width/2, -k.height/2, k.width, k.height);
+		ctx.strokeStyle = '#ffd700';
+		ctx.lineWidth = 4;
+		ctx.strokeRect(-k.width/2+4, -k.height/2+4, k.width-8, k.height-8);
+		ctx.fillStyle = '#4a0000';
+		ctx.font = 'bold 13px Cinzel';
+		ctx.textAlign = 'center';
+		ctx.fillText(k.label, 0, 28);
+		ctx.restore();
+	});
+}
+
+function drawFrame() {
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	const grad = ctx.createRadialGradient(heartX, heartY+80, 120, heartX, heartY+320, 520);
+	grad.addColorStop(0, 'rgba(255,90,90,0.14)');
+	grad.addColorStop(1, 'transparent');
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	drawPipes();
+	drawSacredHeart();
+	drawKeys();
+
+	heartScale = 1 + Math.sin(Date.now() / 920) * 0.013;
+	flameIntensity = Math.max(0, flameIntensity * 0.87);
+}
+
+function animate() {
+	drawFrame();
+	requestAnimationFrame(animate);
+}
+
+// ====================== INPUT ======================
+function handleStart(e) {
+	e.preventDefault();
+	initAudio();
+	const rect = canvas.getBoundingClientRect();
+	const pos = { x: (e.touches ? e.touches[0].clientX : e.clientX) - rect.left, y: (e.touches ? e.touches[0].clientY : e.clientY) - rect.top };
+
+	keys.forEach(key => {
+		if (Math.abs(pos.x - key.x) < key.width/2 + 14 && Math.abs(pos.y - key.y) < key.height/2 + 22) {
+			key.pressed = true;
+			playNote(key.freq, 1350, 0.78);
+			flameIntensity = 1.6;
+		}
+	});
+}
+
+function handleEnd() { keys.forEach(k => k.pressed = false); }
+
+function handleKeyDown(e) {
+	if (e.repeat) return;
+	const index = keyMap[e.key.toLowerCase()];
+	if (index !== undefined && keys[index]) {
+		keys[index].pressed = true;
+		playNote(keys[index].freq, 950, 0.78);
+		flameIntensity = 1.5;
+	}
+}
+
+function handleKeyUp(e) {
+	const index = keyMap[e.key.toLowerCase()];
+	if (index !== undefined && keys[index]) keys[index].pressed = false;
+}
+
+// ====================== MIDI ======================
+async function connectMIDI() {
+	if (!navigator.requestMIDIAccess) return alert("Web MIDI not supported in this browser.");
+	try {
+		const midi = await navigator.requestMIDIAccess();
+		document.getElementById('midi-status').innerHTML = "✅ MIDI Connected";
+		for (let input of midi.inputs.values()) {
+			input.onmidimessage = msg => {
+				const [cmd, note, vel] = msg.data;
+				if ((cmd & 0xF0) === 0x90 && vel > 0) {
+					const freq = 440 * Math.pow(2, (note - 69) / 12);
+					playNote(freq, 2000, vel/127);
+				}
+			};
+		}
+	} catch(err) { alert("Could not connect MIDI device"); }
+}
+
+// ====================== EVENT LISTENERS ======================
+canvas.addEventListener('mousedown', handleStart);
+canvas.addEventListener('touchstart', handleStart, { passive: false });
+window.addEventListener('mouseup', handleEnd);
+window.addEventListener('touchend', handleEnd);
+window.addEventListener('keydown', handleKeyDown);
+window.addEventListener('keyup', handleKeyUp);
+
+document.getElementById('organ-stop').onchange = e => {
+	currentStop = e.target.value;
+	document.getElementById('custom-presets').style.display = currentStop === 'custom' ? 'block' : 'none';
+};
+
+document.getElementById('midi-connect').onclick = connectMIDI;
+
+const types = ['sine','square','sawtooth','triangle'];
+document.getElementById('osc1').oninput = function() { customParams.osc1 = types[this.value]; document.getElementById('osc1-val').textContent = customParams.osc1; };
+document.getElementById('osc2').oninput = function() { customParams.osc2 = types[this.value]; document.getElementById('osc2-val').textContent = customParams.osc2; };
+document.getElementById('filter').oninput = function() { customParams.filter = +this.value; document.getElementById('filter-val').textContent = this.value; };
+document.getElementById('detune').oninput = function() { customParams.detune = +this.value; document.getElementById('detune-val').textContent = this.value; };
+
+document.getElementById('save-preset').onclick = () => { localStorage.setItem('customOrgan', JSON.stringify(customParams)); alert('Preset saved!'); };
+document.getElementById('load-preset').onclick = () => {
+	const saved = localStorage.getItem('customOrgan');
+	if (saved) { customParams = JSON.parse(saved); alert('Preset loaded!'); }
+};
+
+// Button listeners
+document.getElementById('chord').onclick = () => { initAudio(); [261.63,329.63,392,523.25].forEach(f => playNote(f,2200,0.55)); flameIntensity = 2.5; };
+document.getElementById('corjesu').onclick = () => { stopSong(); playSong(hymns.corjesu); };
+document.getElementById('avemaria').onclick = () => { stopSong(); playSong(hymns.avemaria); };
+document.getElementById('tantum').onclick = () => { stopSong(); playSong(hymns.tantum); };
+document.getElementById('panis').onclick = () => { stopSong(); playSong(hymns.panis); };
+document.getElementById('amazing').onclick = () => { stopSong(); playSong(hymns.amazing); };
+document.getElementById('stop').onclick = stopSong;
+document.getElementById('reset').onclick = () => { stopSong(); flameIntensity = 0; keys.forEach(k => k.pressed = false); pipes.forEach(p => p.glow = 0); };
+document.getElementById('play-custom').onclick = () => {
+	stopSong();
+	const lines = document.getElementById('custom-input').value.trim().split('\n');
+	const melody = [];
+	lines.forEach(line => {
+		const [note, dur] = line.trim().split(/\s+/);
+		if (note) melody.push({freq: 440 * Math.pow(2, (['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(note.replace(/\d/,'').toUpperCase()) + (parseInt(note.match(/\d+/)) - 4)*12 + 9)/12), duration: parseFloat(dur)||800});
+	});
+	if (melody.length) playSong(melody);
+};
+
+// Initialize
+initPipes();
+initKeys();
+animate();
+</script>
+</body>
+</html>
