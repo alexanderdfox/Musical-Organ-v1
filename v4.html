@@ -125,7 +125,7 @@ button:active {
 		<button id="midi-connect">🎹 Connect MIDI</button>
 	</div>
 
-	<div id="midi-status">MIDI Device: Not connected</div>
+	<div id="midi-status">MIDI: Ready</div>
 
 	<div class="select-container">
 		<label for="organ-stop"><strong>Organ Voice:</strong></label><br>
@@ -141,7 +141,7 @@ button:active {
 	</div>
 
 	<div class="preset-section" id="custom-presets">
-		<h3>Custom Organ Preset</h3>
+		<h3>Custom Preset</h3>
 		<label>Osc1: <span id="osc1-val">sawtooth</span></label>
 		<input type="range" id="osc1" min="0" max="3" value="0">
 		<label>Osc2: <span id="osc2-val">sine</span></label>
@@ -150,10 +150,6 @@ button:active {
 		<input type="range" id="filter" min="800" max="6000" value="2600" step="50">
 		<label>Detune: <span id="detune-val">0</span></label>
 		<input type="range" id="detune" min="-30" max="30" value="0">
-		<div style="margin-top:12px;">
-			<button id="save-preset">Save Preset</button>
-			<button id="load-preset">Load Preset</button>
-		</div>
 	</div>
 
 	<div class="import-section">
@@ -170,7 +166,7 @@ button:active {
 	
 	<div class="info">
 		Tap keys or use computer keyboard (A S D F G H J K L ; ' \ Z X)<br>
-		Real MIDI keyboards supported
+		MIDI Input + Output supported
 	</div>
 </div>
 
@@ -188,10 +184,11 @@ let audioContext;
 let isPlayingSong = false;
 let songTimeoutIds = [];
 let currentStop = 'diapason';
-
-let customParams = { osc1: 'sawtooth', osc2: 'sine', filter: 2600, detune: 0 };
+let midiOutput = null;
 
 const keyMap = {'a':0,'s':1,'d':2,'f':3,'g':4,'h':5,'j':6,'k':7,'l':8,';':9,"'":10,'\\':11,'z':12,'x':13};
+
+let customParams = { osc1: 'sawtooth', osc2: 'sine', filter: 2600, detune: 0 };
 
 // ====================== AUDIO ======================
 function initAudio() {
@@ -199,8 +196,8 @@ function initAudio() {
 	if (audioContext.state === 'suspended') audioContext.resume();
 }
 
-function playNote(freq, duration = 800, velocity = 0.75) {
-	if (!audioContext) return;
+function playNote(freq, duration = 800, velocity = 0.78) {
+	initAudio();
 	const now = audioContext.currentTime;
 	const osc1 = audioContext.createOscillator();
 	const osc2 = audioContext.createOscillator();
@@ -208,12 +205,12 @@ function playNote(freq, duration = 800, velocity = 0.75) {
 	const filter = audioContext.createBiquadFilter();
 
 	filter.type = 'lowpass';
+	filter.frequency.value = (currentStop === 'piano') ? 2800 : 2600;
 
 	if (currentStop === 'piano') {
 		osc1.type = 'triangle';
 		osc2.type = 'sine';
 		osc2.frequency.value = freq * 2.01;
-		filter.frequency.value = 2800;
 	} else if (currentStop === 'custom') {
 		osc1.type = customParams.osc1;
 		osc2.type = customParams.osc2;
@@ -221,31 +218,36 @@ function playNote(freq, duration = 800, velocity = 0.75) {
 		osc2.detune.value = -customParams.detune;
 		filter.frequency.value = customParams.filter;
 	} else {
-		switch(currentStop) {
-			case 'flute': osc1.type='sine'; osc2.type='triangle'; filter.frequency.value=1700; break;
-			case 'reed': osc1.type='sawtooth'; osc2.type='square'; filter.frequency.value=3400; break;
-			case 'string': osc1.type='sawtooth'; osc2.type='sawtooth'; filter.frequency.value=2100; break;
-			case 'full': osc1.type='sawtooth'; osc2.type='square'; filter.frequency.value=4000; break;
-			default: osc1.type='sawtooth'; osc2.type='sine'; filter.frequency.value=2600;
-		}
+		osc1.type = 'sawtooth';
+		osc2.type = 'sine';
 		osc2.frequency.value = freq * 2;
 	}
 
 	osc1.frequency.value = freq;
 
 	gain.gain.setValueAtTime(0.001, now);
-	gain.gain.linearRampToValueAtTime(velocity, now + 0.05);
-	gain.gain.linearRampToValueAtTime(velocity * 0.48, now + duration/1000 * 0.7);
-	gain.gain.linearRampToValueAtTime(0.001, now + duration/1000 + 0.4);
+	gain.gain.linearRampToValueAtTime(velocity, now + 0.04);
+	gain.gain.linearRampToValueAtTime(velocity * 0.52, now + duration/1000 * 0.68);
+	gain.gain.linearRampToValueAtTime(0.001, now + duration/1000 + 0.5);
 
-	osc1.connect(filter); osc2.connect(filter);
-	filter.connect(gain); gain.connect(audioContext.destination);
+	osc1.connect(filter);
+	osc2.connect(filter);
+	filter.connect(gain);
+	gain.connect(audioContext.destination);
 
-	osc1.start(now); osc2.start(now);
-	osc1.stop(now + duration/1000 + 0.5);
-	osc2.stop(now + duration/1000 + 0.5);
+	osc1.start(now);
+	osc2.start(now);
+	osc1.stop(now + duration/1000 + 0.6);
+	osc2.stop(now + duration/1000 + 0.6);
 
-	flameIntensity = Math.min(3.5, flameIntensity + 1);
+	flameIntensity = Math.min(3.5, flameIntensity + 0.9);
+
+	// MIDI Output
+	if (midiOutput) {
+		const note = Math.round(69 + 12 * Math.log2(freq / 440));
+		midiOutput.send([0x90, note, Math.floor(velocity * 127)]);
+		setTimeout(() => { if (midiOutput) midiOutput.send([0x80, note, 0]); }, duration);
+	}
 }
 
 // ====================== HYMNS ======================
@@ -258,16 +260,16 @@ const hymns = {
 };
 
 function playSong(notes) {
-	if (isPlayingSong) return;
+	if (isPlayingSong || !notes.length) return;
 	initAudio();
 	isPlayingSong = true;
 	let time = 0;
-	notes.forEach(n => {
-		const id = setTimeout(() => playNote(n.freq, n.duration || 800, 0.72), time);
+	notes.forEach(note => {
+		const id = setTimeout(() => playNote(note.freq, note.duration, 0.72), time);
 		songTimeoutIds.push(id);
-		time += (n.duration || 800) * 0.92;
+		time += note.duration * 0.92;
 	});
-	setTimeout(() => isPlayingSong = false, time + 800);
+	setTimeout(() => isPlayingSong = false, time + 600);
 }
 
 function stopSong() {
@@ -276,7 +278,7 @@ function stopSong() {
 	isPlayingSong = false;
 }
 
-// ====================== VISUALS (Original Style) ======================
+// ====================== VISUALS ======================
 function initPipes() {
 	pipes = [];
 	const startX = heartX - 280;
@@ -384,10 +386,10 @@ function handleStart(e) {
 	const pos = { x: (e.touches ? e.touches[0].clientX : e.clientX) - rect.left, y: (e.touches ? e.touches[0].clientY : e.clientY) - rect.top };
 
 	keys.forEach(key => {
-		if (Math.abs(pos.x - key.x) < key.width/2 + 14 && Math.abs(pos.y - key.y) < key.height/2 + 22) {
+		if (Math.abs(pos.x - key.x) < key.width/2 + 16 && Math.abs(pos.y - key.y) < key.height/2 + 25) {
 			key.pressed = true;
-			playNote(key.freq, 1350, 0.78);
-			flameIntensity = 1.6;
+			playNote(key.freq, 1350, 0.8);
+			flameIntensity = 1.7;
 		}
 	});
 }
@@ -399,8 +401,8 @@ function handleKeyDown(e) {
 	const index = keyMap[e.key.toLowerCase()];
 	if (index !== undefined && keys[index]) {
 		keys[index].pressed = true;
-		playNote(keys[index].freq, 950, 0.78);
-		flameIntensity = 1.5;
+		playNote(keys[index].freq, 950, 0.8);
+		flameIntensity = 1.6;
 	}
 }
 
@@ -411,20 +413,14 @@ function handleKeyUp(e) {
 
 // ====================== MIDI ======================
 async function connectMIDI() {
-	if (!navigator.requestMIDIAccess) return alert("Web MIDI not supported in this browser.");
+	if (!navigator.requestMIDIAccess) return alert("Web MIDI not supported. Use Chrome or Edge.");
 	try {
 		const midi = await navigator.requestMIDIAccess();
-		document.getElementById('midi-status').innerHTML = "✅ MIDI Connected";
-		for (let input of midi.inputs.values()) {
-			input.onmidimessage = msg => {
-				const [cmd, note, vel] = msg.data;
-				if ((cmd & 0xF0) === 0x90 && vel > 0) {
-					const freq = 440 * Math.pow(2, (note - 69) / 12);
-					playNote(freq, 2000, vel/127);
-				}
-			};
-		}
-	} catch(err) { alert("Could not connect MIDI device"); }
+		document.getElementById('midi-status').textContent = "✅ MIDI Connected";
+		midiOutput = Array.from(midi.outputs.values())[0];
+	} catch (err) {
+		alert("MIDI connection failed");
+	}
 }
 
 // ====================== EVENT LISTENERS ======================
@@ -435,27 +431,14 @@ window.addEventListener('touchend', handleEnd);
 window.addEventListener('keydown', handleKeyDown);
 window.addEventListener('keyup', handleKeyUp);
 
+document.getElementById('midi-connect').onclick = connectMIDI;
 document.getElementById('organ-stop').onchange = e => {
 	currentStop = e.target.value;
 	document.getElementById('custom-presets').style.display = currentStop === 'custom' ? 'block' : 'none';
 };
 
-document.getElementById('midi-connect').onclick = connectMIDI;
-
-const types = ['sine','square','sawtooth','triangle'];
-document.getElementById('osc1').oninput = function() { customParams.osc1 = types[this.value]; document.getElementById('osc1-val').textContent = customParams.osc1; };
-document.getElementById('osc2').oninput = function() { customParams.osc2 = types[this.value]; document.getElementById('osc2-val').textContent = customParams.osc2; };
-document.getElementById('filter').oninput = function() { customParams.filter = +this.value; document.getElementById('filter-val').textContent = this.value; };
-document.getElementById('detune').oninput = function() { customParams.detune = +this.value; document.getElementById('detune-val').textContent = this.value; };
-
-document.getElementById('save-preset').onclick = () => { localStorage.setItem('customOrgan', JSON.stringify(customParams)); alert('Preset saved!'); };
-document.getElementById('load-preset').onclick = () => {
-	const saved = localStorage.getItem('customOrgan');
-	if (saved) { customParams = JSON.parse(saved); alert('Preset loaded!'); }
-};
-
 // Button listeners
-document.getElementById('chord').onclick = () => { initAudio(); [261.63,329.63,392,523.25].forEach(f => playNote(f,2200,0.55)); flameIntensity = 2.5; };
+document.getElementById('chord').onclick = () => { initAudio(); [261.63,329.63,392,523.25].forEach(f => playNote(f, 2200, 0.55)); flameIntensity = 2.5; };
 document.getElementById('corjesu').onclick = () => { stopSong(); playSong(hymns.corjesu); };
 document.getElementById('avemaria').onclick = () => { stopSong(); playSong(hymns.avemaria); };
 document.getElementById('tantum').onclick = () => { stopSong(); playSong(hymns.tantum); };
@@ -468,8 +451,11 @@ document.getElementById('play-custom').onclick = () => {
 	const lines = document.getElementById('custom-input').value.trim().split('\n');
 	const melody = [];
 	lines.forEach(line => {
-		const [note, dur] = line.trim().split(/\s+/);
-		if (note) melody.push({freq: 440 * Math.pow(2, (['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(note.replace(/\d/,'').toUpperCase()) + (parseInt(note.match(/\d+/)) - 4)*12 + 9)/12), duration: parseFloat(dur)||800});
+		const parts = line.trim().split(/\s+/);
+		if (parts[0]) {
+			const freq = 440 * Math.pow(2, (['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(parts[0].replace(/\d+/,'').toUpperCase()) + (parseInt(parts[0].match(/\d+/)) - 4)*12 + 9) / 12);
+			melody.push({freq, duration: parseFloat(parts[1]) || 800});
+		}
 	});
 	if (melody.length) playSong(melody);
 };
