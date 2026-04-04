@@ -153,6 +153,7 @@
         </div>
     </div>
 
+    <script src="midi-parser.js"></script>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { alpha: true });
@@ -219,21 +220,35 @@
             if (isPlayingSong || !notes.length) return;
             initAudio();
             isPlayingSong = true;
-            let time = 0;
-            
-            notes.forEach(note => {
-                const id = setTimeout(() => {
-                    playNote(note.freq, note.duration, 0.68);
-                    flameIntensity = Math.min(2.5, flameIntensity + 0.7);
-                    if (pipes.length) pipes[Math.floor(Math.random()*pipes.length)].glow = 1.5;
-                }, time);
-                songTimeoutIds.push(id);
-                time += note.duration * 0.93;
-            });
-            
-            setTimeout(() => isPlayingSong = false, time + 800);
+            const useAbs = typeof notes[0].startTime === 'number';
+            if (useAbs) {
+                let maxEnd = 0;
+                notes.forEach(note => {
+                    const v = note.velocity != null ? note.velocity : 0.68;
+                    const id = setTimeout(() => {
+                        playNote(note.freq, note.duration, v);
+                        flameIntensity = Math.min(2.5, flameIntensity + 0.7);
+                        if (pipes.length) pipes[Math.floor(Math.random()*pipes.length)].glow = 1.5;
+                    }, note.startTime);
+                    songTimeoutIds.push(id);
+                    maxEnd = Math.max(maxEnd, note.startTime + note.duration);
+                });
+                songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, maxEnd + 800));
+            } else {
+                let time = 0;
+                notes.forEach(note => {
+                    const id = setTimeout(() => {
+                        playNote(note.freq, note.duration, 0.68);
+                        flameIntensity = Math.min(2.5, flameIntensity + 0.7);
+                        if (pipes.length) pipes[Math.floor(Math.random()*pipes.length)].glow = 1.5;
+                    }, time);
+                    songTimeoutIds.push(id);
+                    time += note.duration * 0.93;
+                });
+                songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, time + 800));
+            }
         }
-        
+
         // ==================== FULLER SACRED HYMN VERSIONS ====================
         const hymns = {
             corjesu: [
@@ -279,54 +294,7 @@
             songTimeoutIds = [];
             isPlayingSong = false;
         }
-        
-        // MIDI parser (unchanged)
-        function parseMidi(arrayBuffer) {
-            try {
-                const data = new DataView(arrayBuffer);
-                let offset = 22;
-                const events = [];
-                let currentTime = 0;
-                let tempo = 500000;
-                
-                while (offset < arrayBuffer.byteLength) {
-                    let delta = 0, byte;
-                    do { byte = data.getUint8(offset++); delta = (delta << 7) | (byte & 0x7F); } while (byte & 0x80);
-                    currentTime += delta;
-                    
-                    const status = data.getUint8(offset++);
-                    if (status === 0xFF) {
-                        const type = data.getUint8(offset++);
-                        const len = data.getUint8(offset++);
-                        if (type === 0x51) tempo = (data.getUint8(offset)<<16)|(data.getUint8(offset+1)<<8)|data.getUint8(offset+2);
-                        offset += len;
-                        continue;
-                    }
-                    if ((status & 0xF0) === 0x90) {
-                        const note = data.getUint8(offset++);
-                        const vel = data.getUint8(offset++);
-                        if (vel > 0) events.push({time: currentTime, note});
-                    } else if ((status & 0xF0) === 0x80) {
-                        offset += 2;
-                    } else {
-                        offset += ((status & 0xF0) === 0xC0 || (status & 0xF0) === 0xD0) ? 1 : 2;
-                    }
-                }
-                
-                const playable = [];
-                for (let i = 0; i < events.length; i++) {
-                    const ev = events[i];
-                    const msPerTick = tempo / 1000 / 480;
-                    const duration = (i < events.length-1 ? events[i+1].time - ev.time : 480) * msPerTick;
-                    playable.push({
-                        freq: 440 * Math.pow(2, (ev.note - 69) / 12),
-                        duration: Math.max(200, Math.min(2400, duration))
-                    });
-                }
-                return playable;
-            } catch(e) { return []; }
-        }
-        
+
         // Visual functions (same as previous optimized version)
         function initPipes() {
             pipes = [];
@@ -508,7 +476,11 @@
             if (!file) return;
             try {
                 const buf = await file.arrayBuffer();
-                const melody = parseMidi(buf);
+                if (typeof parseMidiFile !== 'function') {
+                    alert('MIDI parser not loaded (midi-parser.js).');
+                    return;
+                }
+                const melody = parseMidiFile(buf);
                 if (melody.length) {
                     stopSong();
                     playSong(melody);
@@ -516,6 +488,7 @@
             } catch(err) {
                 alert("Could not read MIDI file.");
             }
+            e.target.value = '';
         };
         
         // Initialize

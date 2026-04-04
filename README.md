@@ -1,39 +1,70 @@
+# Sacred Heart Pipe Organ
 
-## 📱 Mobile Support
+Interactive **Sacred Heart** pipe organ in the browser: canvas art, Web Audio organ tone, hymns, custom melodies, and MIDI file import. Some versions also send notes to external gear or a DAW over **Web MIDI**.
 
-- Full touch support (tap and drag on keys)
-- Audio works on iOS and Android (first tap unlocks audio)
-- Scrollable layout so all controls are accessible
-- Optimized performance for phones and tablets
+## Quick start
 
-## 🛠️ Files
+1. Clone or download this repository.
+2. Open **`index.html`** in a modern browser, or open any version file directly.
+3. For **Import MIDI File** to work, keep **`midi-parser.js`** in the **same folder** as the HTML file (required for `v1.html`–`v6.html`).
 
-- `heart.html` – The complete interactive organ (single file)
+Using a local static server (optional) avoids any `file://` quirks:
 
-## 🎵 Tech Highlights
+```bash
+# example
+npx --yes serve .
+```
 
-- Pure vanilla HTML5 + CSS + JavaScript (no frameworks)
-- Web Audio API for realistic pipe organ timbre
-- Simple MIDI file parser
-- Canvas-based animated Sacred Heart with dynamic flames
-- Responsive design with proper mobile scrolling
+Then visit the URL shown and open `index.html`.
 
-## 🙏 Inspiration
+## Versions
 
-Created as a digital tribute to the **Immaculate Heart of Jesus** — "Cor Jesu, miserere nobis" (Heart of Jesus, have mercy on us).
+| File | Summary |
+|------|---------|
+| **`index.html`** | Hub with links to all organ versions |
+| **`v1.html`** | Original organ, two auto hymns, MIDI **file** import |
+| **`v2.html`** | Six hymns, custom melody text, MIDI **file** import |
+| **`v3.html`** | Like v2 + computer keyboard mapping |
+| **`v4.html`** | Like v3 + **Web MIDI output** (Connect MIDI), Opera/Chrome/Edge |
+| **`v5.html`** | Piano-style keys, **16 MIDI channels**, Web MIDI output |
+| **`v6.html`** | **Multi-manual** keyboards (presets + JSON layouts), Web MIDI output |
 
-## 📄 License
+## Features
 
-This project is open source and free to use for personal and devotional purposes.
+- **Touch and mouse** on on-screen keys (layout varies by version).
+- **Computer keyboard** on v3–v6 (mappings shown in the UI where applicable).
+- **Hymns / chord / custom text** melodies (scope varies by version).
+- **MIDI file import** (`.mid` / `.midi`): standard MIDI file parsing in **`midi-parser.js`** (tempo map, note on/off pairing, timed playback). Used by all `v1`–`v6` pages.
+- **Web MIDI output** (to a virtual cable and then a DAW): **`v4.html`**, **`v5.html`**, **`v6.html`** only — see **`howto.md`**.
 
----
+## Project files
 
-**Made with love and reverence.**
+| Item | Role |
+|------|------|
+| `index.html` | Landing page / version picker |
+| `v1.html` … `v6.html` | Organ apps |
+| `midi-parser.js` | Shared SMF → note list for import |
+| `howto.md` | Routing browser MIDI into macOS / Windows DAWs |
+| `LICENSE` | [Unlicense](https://unlicense.org/) (public domain) |
 
-Feel free to contribute new hymns, improve the sound engine, or add more sacred artwork!
+## Tech
 
-## How to use this README:
+- Vanilla HTML, CSS, JavaScript (no build step).
+- **Web Audio API** for synthesis.
+- **Canvas** for the heart, pipes, and keys.
+- **Web MIDI API** where supported (output in v4–v6).
 
-Create a new file in your repository called README.md
-Copy and paste the content above
-(Optional) Add a nice screenshot named preview.png in the same folder and it will display at the top
+## Mobile
+
+- Touch works on the key areas; first user gesture may be required to unlock audio on iOS.
+- Layout is scrollable so controls stay reachable on small screens.
+
+## Inspiration
+
+A digital tribute to the **Immaculate Heart of Jesus** — *Cor Jesu, miserere nobis*.
+
+## License
+
+This project is released under the **Unlicense**; see **`LICENSE`**.
+
+Contributions welcome: hymns, sound tweaks, or artwork — keep the spirit reverent and the stack simple.

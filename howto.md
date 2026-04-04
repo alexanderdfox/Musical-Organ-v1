@@ -1,93 +1,104 @@
-# Sacred Heart Pipe Organ - MIDI Setup Guide
+# Sacred Heart Pipe Organ — MIDI to your DAW
 
-How to use the Sacred Heart Pipe Organ web app as a **MIDI device** on **macOS** and **Windows**.
+How to use the organ in the browser as a **MIDI source** for **macOS** or **Windows**, so notes played in the page can trigger instruments in Logic, Ableton, FL Studio, Reaper, etc.
+
+---
+
+## Which pages support this?
+
+**Web MIDI output** (the **Connect MIDI** button) is available on:
+
+- **`v4.html`**
+- **`v5.html`**
+- **`v6.html`**
+
+Open one of these from the same folder as the rest of the project (or start from **`index.html`** and choose that version).
+
+**Note:** **`v1.html`**, **`v2.html`**, and **`v3.html`** can **import `.mid` files** (with **`midi-parser.js`** next to the HTML) but do **not** expose the Connect MIDI / Web MIDI output feature.
+
+**Browser:** Google **Chrome** or Microsoft **Edge** (Web MIDI is not available in Firefox; Safari support is limited).
 
 ---
 
 ## Prerequisites
 
-- The organ HTML file (`sacred-heart-organ.html`)
-- Google Chrome (recommended) or Microsoft Edge
-- Your DAW (Logic Pro, GarageBand, Ableton Live, FL Studio, Reaper, etc.)
+- This repo on disk (at minimum the HTML file you use plus **`midi-parser.js`** if you rely on MIDI **file** import).
+- Chrome or Edge.
+- A DAW (Logic Pro, GarageBand, Ableton Live, FL Studio, Reaper, etc.).
+- A **virtual MIDI cable** between the browser and the DAW (setup below).
 
 ---
 
-## macOS Setup
+## macOS setup
 
-### Step 1: Enable IAC Driver (macOS built-in virtual MIDI)
+### 1. Enable IAC Driver (built-in virtual MIDI)
 
-1. Open **Spotlight** (`Cmd + Space`) and search for **Audio MIDI Setup**
-2. Open **Audio MIDI Setup**
-3. Go to menu bar → **Window** → **Show MIDI Studio**
-4. Double-click on **IAC Driver**
-5. Check the box **"Device is online"**
-6. Click **Apply**
+1. Open **Spotlight** (`Cmd + Space`) → **Audio MIDI Setup**.
+2. Menu **Window** → **Show MIDI Studio**.
+3. Double-click **IAC Driver**.
+4. Enable **Device is online** → **Apply**.
 
-You should now have a port called **"IAC Driver Bus 1"**
+You should see a port such as **IAC Driver Bus 1**.
 
-### Step 2: Open the Organ
+### 2. Open the organ
 
-1. Open the `sacred-heart-organ.html` file in **Google Chrome**
-2. Click the button **🎹 Connect MIDI**
-3. It should show "✅ MIDI Connected"
+1. Open **`v4.html`**, **`v5.html`**, or **`v6.html`** in Chrome (or open **`index.html`** and follow the link).
+2. Click **Connect MIDI**. The page should show that MIDI is connected. The app uses the **first MIDI output** the browser lists; if the DAW hears nothing, temporarily disable other MIDI outputs or change device order so **IAC Driver Bus 1** is that first output.
 
-### Step 3: Connect to Your DAW
+### 3. Arm the DAW
 
-In **Logic Pro / GarageBand / Ableton / Reaper**:
-- Go to Preferences → MIDI Settings
-- Enable **IAC Driver Bus 1** as a MIDI Input
-- Create a Software Instrument track
-- Play the organ in Chrome → sound should come from your DAW
+In **Logic / GarageBand / Ableton / Reaper**:
+
+- Open **MIDI** preferences.
+- Enable **IAC Driver Bus 1** as **MIDI input** on an instrument track.
+- Play the on-screen organ; the DAW should receive **Note On/Off** and velocity.
 
 ---
 
-## Windows Setup
+## Windows setup
 
-### Step 1: Install Virtual MIDI Cable
+### 1. Virtual MIDI cable
 
-1. Download and install **LoopMIDI** (free and reliable):
-   - https://www.tobias-erichsen.de/software/loopmidi.html
-2. Run LoopMIDI
-3. Click **"+"** to create a new port
-4. Name it something like `Organ MIDI Out`
+1. Install **loopMIDI** (Tobias Erichsen):  
+   [https://www.tobias-erichsen.de/software/loopmidi.html](https://www.tobias-erichsen.de/software/loopmidi.html)
+2. Run loopMIDI and add a port (e.g. `Organ MIDI`).
 
-### Step 2: Open the Organ
+### 2. Open the organ
 
-1. Open the `sacred-heart-organ.html` file in **Google Chrome** or **Microsoft Edge**
-2. Click **🎹 Connect MIDI**
-3. It should show "✅ MIDI Connected"
+1. Open **`v4.html`**, **`v5.html`**, or **`v6.html`** in Chrome or Edge.
+2. Click **Connect MIDI** and confirm the status message. Same as on macOS: the **first** listed MIDI output is used—put your **loopMIDI** port first if another device steals the slot.
 
-### Step 3: Connect to Your DAW
+### 3. DAW input
 
-In **Ableton Live, FL Studio, Reaper, Cakewalk**, etc.:
+In **Ableton, FL Studio, Reaper**, etc.:
 
-- Go to MIDI / Preferences settings
-- Enable the virtual port you created (`Organ MIDI Out` or similar) as **MIDI Input**
-- Load any virtual instrument
-- Play the organ in the browser → it should trigger your DAW
+- Enable your loopMIDI port as **MIDI input** on an instrument track.
+- Play the browser organ; the track should respond.
+
+---
+
+## Importing MIDI files (playback in the browser)
+
+On **v1–v6**, **Import MIDI File** uses **`midi-parser.js`**. Keep that file in the **same directory** as the HTML file you open. Playback follows file tempo and note lengths; chords overlap in time when the file contains them.
 
 ---
 
 ## Troubleshooting
 
-| Problem                        | Solution |
-|-------------------------------|----------|
-| "Connect MIDI" does nothing   | Use Chrome/Edge, not Firefox or Safari |
-| No sound in DAW               | Make sure the correct MIDI Input port is enabled |
-| Notes are delayed             | Close other tabs, restart browser |
-| Can't see virtual port        | Restart your DAW after creating the virtual port |
-| macOS - No IAC Driver         | Re-open Audio MIDI Setup and enable it |
+| Issue | What to try |
+|--------|-------------|
+| **Connect MIDI** does nothing | Use Chrome or Edge; avoid Firefox for Web MIDI. |
+| No sound in the DAW | Confirm the virtual port is enabled as **input** on the instrument track; restart the DAW after creating a new port. |
+| **Import MIDI** fails or is silent | Ensure **`midi-parser.js`** is beside the HTML file; try another `.mid` file. |
+| Laggy notes | Close heavy tabs; use a wired connection if using extra MIDI gear. |
+| macOS: no IAC | Re-open Audio MIDI Setup and set IAC **online** again. |
 
-### Pro Tips
-
-- Keep the Chrome tab with the organ **visible** (don't minimize)
-- You can play using mouse, touch, computer keyboard, or external MIDI keyboard
-- The organ sends **MIDI Note On/Off** with velocity
+**Tip:** Keep the organ tab **active** while testing; some browsers throttle background tabs.
 
 ---
 
-## Need Help?
+## Need more detail?
 
-Reply with your operating system and DAW (e.g., "macOS + Logic Pro" or "Windows + FL Studio") and I’ll give you more specific instructions.
+Mention your OS and DAW (e.g. “macOS + Logic” or “Windows + FL Studio”) when asking for help so routing steps can be narrowed down.
 
-Enjoy making music with the Sacred Heart Pipe Organ! ❤️🎹
+Enjoy — *Cor Jesu*.

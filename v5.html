@@ -192,6 +192,7 @@ button:active {
 	</div>
 </div>
 
+<script src="midi-parser.js"></script>
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { alpha: true });
@@ -283,13 +284,25 @@ function playSong(notes) {
 	if (isPlayingSong || !notes.length) return;
 	initAudio();
 	isPlayingSong = true;
-	let time = 0;
-	notes.forEach(n => {
-		const id = setTimeout(() => playNote(n.freq, n.duration || 800, 0.72), time);
-		songTimeoutIds.push(id);
-		time += (n.duration || 800) * 0.92;
-	});
-	setTimeout(() => isPlayingSong = false, time + 800);
+	const useAbs = typeof notes[0].startTime === 'number';
+	if (useAbs) {
+		let maxEnd = 0;
+		notes.forEach(n => {
+			const v = n.velocity != null ? n.velocity : 0.72;
+			const id = setTimeout(() => playNote(n.freq, n.duration || 800, v), n.startTime);
+			songTimeoutIds.push(id);
+			maxEnd = Math.max(maxEnd, n.startTime + (n.duration || 800));
+		});
+		songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, maxEnd + 800));
+	} else {
+		let time = 0;
+		notes.forEach(n => {
+			const id = setTimeout(() => playNote(n.freq, n.duration || 800, 0.72), time);
+			songTimeoutIds.push(id);
+			time += (n.duration || 800) * 0.92;
+		});
+		songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, time + 800));
+	}
 }
 
 function stopSong() {
@@ -486,6 +499,28 @@ document.getElementById('amazing').onclick = () => { stopSong(); playSong(hymns.
 document.getElementById('stop').onclick = stopSong;
 document.getElementById('reset').onclick = () => { stopSong(); flameIntensity = 0; keys.forEach(k => k.pressed = false); pipes.forEach(p => p.glow = 0); };
 document.getElementById('play-custom').onclick = () => { /* custom logic */ };
+
+document.getElementById('midi-upload').onchange = async (e) => {
+	const file = e.target.files[0];
+	if (!file) return;
+	try {
+		const buf = await file.arrayBuffer();
+		if (typeof parseMidiFile !== 'function') {
+			alert('MIDI parser not loaded (midi-parser.js).');
+			return;
+		}
+		const melody = parseMidiFile(buf);
+		if (melody.length) {
+			stopSong();
+			playSong(melody);
+		} else {
+			alert('No notes found in MIDI file.');
+		}
+	} catch (err) {
+		alert('Could not read MIDI file.');
+	}
+	e.target.value = '';
+};
 
 // Initialize
 initPipes();

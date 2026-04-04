@@ -170,6 +170,7 @@ button:active {
 	</div>
 </div>
 
+<script src="midi-parser.js"></script>
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { alpha: true });
@@ -263,13 +264,25 @@ function playSong(notes) {
 	if (isPlayingSong || !notes.length) return;
 	initAudio();
 	isPlayingSong = true;
-	let time = 0;
-	notes.forEach(note => {
-		const id = setTimeout(() => playNote(note.freq, note.duration, 0.72), time);
-		songTimeoutIds.push(id);
-		time += note.duration * 0.92;
-	});
-	setTimeout(() => isPlayingSong = false, time + 600);
+	const useAbs = typeof notes[0].startTime === 'number';
+	if (useAbs) {
+		let maxEnd = 0;
+		notes.forEach(note => {
+			const v = note.velocity != null ? note.velocity : 0.72;
+			const id = setTimeout(() => playNote(note.freq, note.duration, v), note.startTime);
+			songTimeoutIds.push(id);
+			maxEnd = Math.max(maxEnd, note.startTime + note.duration);
+		});
+		songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, maxEnd + 800));
+	} else {
+		let time = 0;
+		notes.forEach(note => {
+			const id = setTimeout(() => playNote(note.freq, note.duration, 0.72), time);
+			songTimeoutIds.push(id);
+			time += note.duration * 0.92;
+		});
+		songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, time + 600));
+	}
 }
 
 function stopSong() {
@@ -458,6 +471,28 @@ document.getElementById('play-custom').onclick = () => {
 		}
 	});
 	if (melody.length) playSong(melody);
+};
+
+document.getElementById('midi-upload').onchange = async (e) => {
+	const file = e.target.files[0];
+	if (!file) return;
+	try {
+		const buf = await file.arrayBuffer();
+		if (typeof parseMidiFile !== 'function') {
+			alert('MIDI parser not loaded (midi-parser.js).');
+			return;
+		}
+		const melody = parseMidiFile(buf);
+		if (melody.length) {
+			stopSong();
+			playSong(melody);
+		} else {
+			alert('No notes found in MIDI file.');
+		}
+	} catch (err) {
+		alert('Could not read MIDI file.');
+	}
+	e.target.value = '';
 };
 
 // Initialize

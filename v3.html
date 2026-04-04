@@ -150,6 +150,7 @@ Works great on iOS & Android • Sacred organ sound with natural sustain
 </div>
 </div>
 
+<script src="midi-parser.js"></script>
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { alpha: true });
@@ -283,19 +284,33 @@ function playSong(notes) {
   if (isPlayingSong || !notes.length) return;
   initAudio();
   isPlayingSong = true;
-  let time = 0;
-  
-  notes.forEach(note => {
-    const id = setTimeout(() => {
-      playNote(note.freq, note.duration, 0.68);
-      flameIntensity = Math.min(2.8, flameIntensity + 0.8);
-      if (pipes.length) pipes[Math.floor(Math.random()*pipes.length)].glow = 1.6;
-    }, time);
-    songTimeoutIds.push(id);
-    time += note.duration * 0.92;
-  });
-  
-  setTimeout(() => { isPlayingSong = false; }, time + 600);
+  const useAbs = typeof notes[0].startTime === 'number';
+  if (useAbs) {
+    let maxEnd = 0;
+    notes.forEach(note => {
+      const v = note.velocity != null ? note.velocity : 0.68;
+      const id = setTimeout(() => {
+        playNote(note.freq, note.duration, v);
+        flameIntensity = Math.min(2.8, flameIntensity + 0.8);
+        if (pipes.length) pipes[Math.floor(Math.random()*pipes.length)].glow = 1.6;
+      }, note.startTime);
+      songTimeoutIds.push(id);
+      maxEnd = Math.max(maxEnd, note.startTime + note.duration);
+    });
+    songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, maxEnd + 800));
+  } else {
+    let time = 0;
+    notes.forEach(note => {
+      const id = setTimeout(() => {
+        playNote(note.freq, note.duration, 0.68);
+        flameIntensity = Math.min(2.8, flameIntensity + 0.8);
+        if (pipes.length) pipes[Math.floor(Math.random()*pipes.length)].glow = 1.6;
+      }, time);
+      songTimeoutIds.push(id);
+      time += note.duration * 0.92;
+    });
+    songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, time + 600));
+  }
 }
 
 function stopSong() {
@@ -471,28 +486,6 @@ function handleKeyUp(e) {
   if (index !== undefined && keys[index]) keys[index].pressed = false;
 }
 
-// MIDI basic parser (single melody track)
-function parseMidi(arrayBuffer) {
-  const melody = [];
-  try {
-    const data = new Uint8Array(arrayBuffer);
-    let pos = 0;
-    // Very basic MIDI parsing - looks for note-on events
-    while (pos < data.length - 4) {
-      if (data[pos] === 0x90 || data[pos] === 0x80) { // Note on/off
-        const note = data[pos+1];
-        const vel = data[pos+2];
-        if (vel > 0 && note > 20 && note < 100) {
-          const freq = 440 * Math.pow(2, (note - 69) / 12);
-          melody.push({freq, duration: 600});
-        }
-      }
-      pos++;
-    }
-  } catch(e) {}
-  return melody.length > 3 ? melody : [];
-}
-
 // Event Listeners
 canvas.addEventListener('mousedown', handleStart);
 canvas.addEventListener('touchstart', handleStart, { passive: false });
@@ -535,7 +528,11 @@ document.getElementById('midi-upload').onchange = async (e) => {
   if (!file) return;
   try {
     const buf = await file.arrayBuffer();
-    const melody = parseMidi(buf);
+    if (typeof parseMidiFile !== 'function') {
+      alert('MIDI parser not loaded (midi-parser.js).');
+      return;
+    }
+    const melody = parseMidiFile(buf);
     if (melody.length) {
       stopSong();
       playSong(melody);
@@ -543,6 +540,7 @@ document.getElementById('midi-upload').onchange = async (e) => {
   } catch(err) {
     alert("Could not read MIDI file.");
   }
+  e.target.value = '';
 };
 
 // Initialize

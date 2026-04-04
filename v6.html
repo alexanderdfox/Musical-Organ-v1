@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sacred Heart Pipe Organ — Multi-Manual</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:wght@700&display=swap');
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 0;
+	min-height: 100dvh;
+	background: radial-gradient(circle at center, #2a0a0a, #0a0a1f);
+	font-family: 'Cinzel', serif;
+	color: #ffd700;
+	touch-action: manipulation;
+}
+.container {
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 20px 12px 40px;
+	text-align: center;
+}
+h1 {
+	font-family: 'Playfair Display', serif;
+	font-size: clamp(2.4rem, 9vw, 3.4rem);
+	margin: 10px 0 8px;
+	text-shadow: 0 0 30px #ff3333, 0 0 60px #ffd700;
+	letter-spacing: 4px;
+}
+.subtitle {
+	font-size: 1.05rem;
+	margin-bottom: 25px;
+	opacity: 0.9;
+	font-style: italic;
+}
+#canvas {
+	width: 100%;
+	max-width: 920px;
+	height: auto;
+	border: 10px solid #4a2c0f;
+	border-image: linear-gradient(#ffd700, #b8860b) 1;
+	border-radius: 18px;
+	box-shadow: 0 0 0 12px #1a0f00,
+				0 0 70px rgba(255, 80, 80, 0.65),
+				inset 0 0 60px rgba(255, 215, 0, 0.2);
+	background: #0f0505;
+	display: block;
+	margin: 0 auto 25px;
+	touch-action: none;
+}
+.controls {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+	flex-wrap: wrap;
+	margin-bottom: 15px;
+}
+button {
+	background: linear-gradient(#8b0000, #4a0000);
+	color: #ffd700;
+	border: 3px solid #ffd700;
+	padding: 14px 22px;
+	font-family: 'Cinzel', serif;
+	font-size: 1.02rem;
+	cursor: pointer;
+	box-shadow: 0 6px 0 #2a0000;
+	border-radius: 6px;
+	min-width: 130px;
+}
+button:active {
+	transform: translateY(4px);
+	box-shadow: 0 2px 0 #2a0000;
+}
+#midi-status { margin: 8px 0; font-size: 0.95rem; }
+.select-container { margin: 12px 0; }
+#organ-stop, #midi-channel, #keyboard-layout {
+	background: linear-gradient(#4a0000, #2a0000);
+	color: #ffd700;
+	border: 3px solid #ffd700;
+	padding: 12px 20px;
+	font-family: 'Cinzel', serif;
+	font-size: 1.05rem;
+	border-radius: 6px;
+	max-width: 100%;
+}
+.preset-section {
+	background: rgba(0,0,0,0.45);
+	border-radius: 14px;
+	padding: 18px;
+	margin: 20px auto;
+	max-width: 720px;
+	display: none;
+}
+.keyboard-layout-section {
+	background: rgba(0,0,0,0.45);
+	border-radius: 14px;
+	padding: 18px;
+	margin: 20px auto;
+	max-width: 720px;
+	text-align: left;
+}
+.keyboard-layout-section h3 {
+	text-align: center;
+	margin-top: 0;
+}
+.keyboard-layout-section textarea {
+	width: 100%;
+	min-height: 140px;
+	margin-top: 10px;
+	font-family: ui-monospace, monospace;
+	font-size: 0.82rem;
+	background: #1a0a0a;
+	color: #f5e6c8;
+	border: 2px solid #b8860b;
+	border-radius: 8px;
+	padding: 10px;
+	resize: vertical;
+}
+.keyboard-layout-section .hint {
+	font-size: 0.82rem;
+	opacity: 0.88;
+	line-height: 1.5;
+	margin-top: 10px;
+}
+.import-section {
+	background: rgba(0,0,0,0.45);
+	border-radius: 14px;
+	padding: 18px;
+	margin: 20px auto;
+	max-width: 720px;
+}
+.info {
+	margin-top: 25px;
+	font-size: 0.88rem;
+	opacity: 0.85;
+	line-height: 1.6;
+}
+</style>
+</head>
+<body>
+<div class="container">
+	<h1>COR JESU</h1>
+	<div class="subtitle">The Immaculate Heart Pipe Organ — Multi-manual</div>
+
+	<canvas id="canvas" width="920" height="720"></canvas>
+
+	<div class="controls">
+		<button id="chord">CHORD</button>
+		<button id="corjesu">COR JESU</button>
+		<button id="avemaria">AVE MARIA</button>
+		<button id="tantum">TANTUM ERGO</button>
+		<button id="panis">PANIS ANGELICUS</button>
+		<button id="amazing">AMAZING GRACE</button>
+		<button id="stop">STOP</button>
+		<button id="reset">RESET</button>
+		<button id="midi-connect">🎹 Connect MIDI</button>
+	</div>
+
+	<div id="midi-status">MIDI: Ready</div>
+
+	<div class="select-container">
+		<label for="keyboard-layout"><strong>Keyboards:</strong></label><br>
+		<select id="keyboard-layout">
+			<option value="single">Single manual (C3–B4)</option>
+			<option value="dual" selected>Dual manual (Swell + Great)</option>
+			<option value="triple">Triple (Swell + Great + Pedal)</option>
+			<option value="custom">Custom (JSON below)</option>
+		</select>
+	</div>
+
+	<div class="keyboard-layout-section" id="layout-custom-wrap">
+		<h3>Custom keyboards (JSON)</h3>
+		<p class="hint">Array of manuals. Each: <code>name</code>, <code>from</code> and <code>to</code> (e.g. <code>C3</code>, <code>F#4</code>, <code>Bb3</code>), and <code>y</code> (vertical position on canvas, ~320–600). Top manual = smaller <code>y</code>.</p>
+		<textarea id="keyboard-json" spellcheck="false"></textarea>
+		<div style="margin-top:12px; text-align:center;">
+			<button type="button" id="apply-keyboard-json">Apply custom keyboards</button>
+		</div>
+	</div>
+
+	<div class="select-container">
+		<label for="organ-stop"><strong>Voice:</strong></label><br>
+		<select id="organ-stop">
+			<option value="diapason">Diapason (Principal)</option>
+			<option value="flute">Flute (Warm)</option>
+			<option value="reed">Reed (Trumpet)</option>
+			<option value="string">String (Viola)</option>
+			<option value="full">Full Chorus</option>
+			<option value="piano">🎹 Piano</option>
+			<option value="custom">Custom Preset</option>
+		</select>
+	</div>
+
+	<div class="select-container">
+		<label for="midi-channel"><strong>MIDI Channel:</strong></label><br>
+		<select id="midi-channel">
+			<option value="1">Channel 1 (Default)</option>
+			<option value="2">Channel 2</option>
+			<option value="3">Channel 3</option>
+			<option value="4">Channel 4</option>
+			<option value="5">Channel 5</option>
+			<option value="6">Channel 6</option>
+			<option value="7">Channel 7</option>
+			<option value="8">Channel 8</option>
+			<option value="9">Channel 9</option>
+			<option value="10">Channel 10 (Drums)</option>
+			<option value="11">Channel 11</option>
+			<option value="12">Channel 12</option>
+			<option value="13">Channel 13</option>
+			<option value="14">Channel 14</option>
+			<option value="15">Channel 15</option>
+			<option value="16">Channel 16</option>
+		</select>
+	</div>
+
+	<div class="preset-section" id="custom-presets">
+		<h3>Custom Preset</h3>
+		<label>Osc1: <span id="osc1-val">sawtooth</span></label>
+		<input type="range" id="osc1" min="0" max="3" value="0">
+		<label>Osc2: <span id="osc2-val">sine</span></label>
+		<input type="range" id="osc2" min="0" max="3" value="1">
+		<label>Filter (Hz): <span id="filter-val">2600</span></label>
+		<input type="range" id="filter" min="800" max="6000" value="2600" step="50">
+		<label>Detune: <span id="detune-val">0</span></label>
+		<input type="range" id="detune" min="-30" max="30" value="0">
+	</div>
+
+	<div class="import-section">
+		<strong>Custom Melody (one note per line)</strong>
+		<textarea id="custom-input" placeholder="C4 800&#10;E4 600&#10;G4 1200&#10;A4 800"></textarea>
+		<div style="margin-top:12px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+			<button id="play-custom">▶ PLAY CUSTOM</button>
+			<label style="cursor:pointer; background:#4a0000; color:#ffd700; border:3px solid #ffd700; padding:14px 26px; border-radius:6px;">
+				📤 Import MIDI File
+				<input type="file" id="midi-upload" accept=".mid,.midi" style="display:none;">
+			</label>
+		</div>
+	</div>
+
+	<div class="info" id="keybind-hint">
+		Tap keys on canvas or type — bindings update per layout.<br>
+		MIDI channel selectable • Custom manuals via JSON
+	</div>
+</div>
+
+<script src="midi-parser.js"></script>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha: true });
+
+let heartX = canvas.width / 2;
+let heartY = 228;
+let heartScale = 1;
+let flameIntensity = 0;
+let pipes = [];
+let manuals = [];
+let flatKeys = [];
+let keyBindings = {};
+let audioContext;
+let isPlayingSong = false;
+let songTimeoutIds = [];
+let currentStop = 'diapason';
+let midiOutput = null;
+let midiChannel = 1;
+
+let customParams = { osc1: 'sawtooth', osc2: 'sine', filter: 2600, detune: 0 };
+
+const OSC_TYPES = ['sawtooth', 'square', 'triangle', 'sine'];
+
+const LAYOUT_PRESETS = {
+	single: [
+		{ name: 'Great', from: 'C3', to: 'B4', y: 518 }
+	],
+	dual: [
+		{ name: 'Swell', from: 'C4', to: 'B5', y: 400 },
+		{ name: 'Great', from: 'C3', to: 'B4', y: 528 }
+	],
+	triple: [
+		{ name: 'Swell', from: 'C5', to: 'C6', y: 322 },
+		{ name: 'Great', from: 'C3', to: 'B4', y: 458 },
+		{ name: 'Pedal', from: 'C2', to: 'E3', y: 588 }
+	]
+};
+
+const KEY_POOLS = [
+	['a','s','d','f','g','h','j','k','l',';','\'','\\','z','x','c','v'],
+	['q','w','e','r','t','y','u','i','o','p','[',']','1','2','3','4'],
+	['5','6','7','8','9','0','-','=','n','m',',','.','/','`','b','v']
+];
+
+const DEFAULT_CUSTOM_JSON = `[
+  { "name": "Swell", "from": "C4", "to": "B5", "y": 400 },
+  { "name": "Great", "from": "C3", "to": "B4", "y": 528 }
+]`;
+
+function isBlackMidi(m) {
+	const pc = m % 12;
+	return [1, 3, 6, 8, 10].includes(pc);
+}
+
+function midiToFreq(m) {
+	return 440 * Math.pow(2, (m - 69) / 12);
+}
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+function midiToLabel(m) {
+	const oct = Math.floor(m / 12) - 1;
+	return NOTE_NAMES[(m % 12 + 12) % 12] + oct;
+}
+
+const LETTER_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+function parseNoteToMidi(s) {
+	const str = String(s).trim();
+	const m = str.match(/^([A-Ga-g])([#b]?)(\d+)$/);
+	if (!m) return null;
+	let pc = LETTER_PC[m[1].toUpperCase()];
+	if (m[2] === '#') pc++;
+	if (m[2] === 'b') pc--;
+	const oct = parseInt(m[3], 10);
+	return (oct + 1) * 12 + pc;
+}
+
+function buildManual(spec, centerX) {
+	const midiLo = parseNoteToMidi(spec.from);
+	const midiHi = parseNoteToMidi(spec.to);
+	if (midiLo == null || midiHi == null || midiLo > midiHi) return [];
+
+	const whiteSpacing = 38;
+	const whiteW = 36;
+	const blackW = 26;
+	const whiteH = 88;
+	const blackH = 56;
+	const baseY = spec.y;
+
+	const midis = [];
+	for (let m = midiLo; m <= midiHi; m++) midis.push(m);
+	const whiteMidis = midis.filter(m => !isBlackMidi(m));
+	if (!whiteMidis.length) return [];
+
+	const totalW = (whiteMidis.length - 1) * whiteSpacing;
+	const leftWhiteX = centerX - totalW / 2;
+	const midiToWhiteX = new Map();
+	whiteMidis.forEach((m, i) => {
+		midiToWhiteX.set(m, leftWhiteX + i * whiteSpacing);
+	});
+
+	const keys = [];
+	for (const m of whiteMidis) {
+		const x = midiToWhiteX.get(m);
+		keys.push({
+			x,
+			y: baseY,
+			width: whiteW,
+			height: whiteH,
+			pressed: false,
+			freq: midiToFreq(m),
+			label: midiToLabel(m),
+			isBlack: false,
+			offset: 0,
+			midi: m,
+			manualName: spec.name
+		});
+	}
+
+	for (const m of midis) {
+		if (!isBlackMidi(m)) continue;
+		let pw = m - 1;
+		while (pw >= midiLo && isBlackMidi(pw)) pw--;
+		let nw = m + 1;
+		while (nw <= midiHi && isBlackMidi(nw)) nw++;
+		const xPrev = midiToWhiteX.get(pw);
+		const xNext = midiToWhiteX.get(nw);
+		if (xPrev === undefined || xNext === undefined) continue;
+		const x = (xPrev + xNext) / 2;
+		keys.push({
+			x,
+			y: baseY - 16,
+			width: blackW,
+			height: blackH,
+			pressed: false,
+			freq: midiToFreq(m),
+			label: '',
+			isBlack: true,
+			offset: 0,
+			midi: m,
+			manualName: spec.name
+		});
+	}
+
+	return keys;
+}
+
+function assignKeyBindings() {
+	keyBindings = {};
+	manuals.forEach((man, mi) => {
+		const pool = KEY_POOLS[mi % KEY_POOLS.length] || KEY_POOLS[0];
+		const ordered = [...man.keys].sort((a, b) => a.midi - b.midi);
+		ordered.forEach((k, i) => {
+			if (i < pool.length) keyBindings[pool[i]] = k;
+		});
+	});
+	const parts = [];
+	manuals.forEach((man, mi) => {
+		const pool = KEY_POOLS[mi % KEY_POOLS.length];
+		const ordered = [...man.keys].sort((a, b) => a.midi - b.midi);
+		const chars = ordered.slice(0, pool.length).map((k, i) => pool[i]).join(' ');
+		if (chars) parts.push(`<strong>${man.name}</strong>: ${chars}`);
+	});
+	document.getElementById('keybind-hint').innerHTML =
+		parts.join('<br>') + '<br>MIDI channel selectable • Custom manuals: JSON + Apply';
+}
+
+function rebuildFromLayout(layoutKey, customJson) {
+	let specs;
+	if (layoutKey === 'custom') {
+		try {
+			specs = JSON.parse(customJson);
+			if (!Array.isArray(specs) || !specs.length) throw new Error('Need a non-empty array');
+		} catch (err) {
+			alert('Invalid JSON: ' + err.message);
+			return;
+		}
+	} else {
+		specs = LAYOUT_PRESETS[layoutKey];
+	}
+
+	manuals = [];
+	flatKeys = [];
+	specs.forEach(s => {
+		const keys = buildManual(
+			{ name: s.name || 'Manual', from: s.from, to: s.to, y: s.y },
+			heartX
+		);
+		manuals.push({ name: s.name || 'Manual', keys });
+		keys.forEach(k => flatKeys.push(k));
+	});
+	assignKeyBindings();
+}
+
+function initAudio() {
+	if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+	if (audioContext.state === 'suspended') audioContext.resume();
+}
+
+function playNote(freq, duration = 800, velocity = 0.78) {
+	initAudio();
+	const now = audioContext.currentTime;
+	const osc1 = audioContext.createOscillator();
+	const osc2 = audioContext.createOscillator();
+	const gain = audioContext.createGain();
+	const filter = audioContext.createBiquadFilter();
+
+	filter.type = 'lowpass';
+	filter.frequency.value = currentStop === 'piano' ? 2800 : 2600;
+
+	if (currentStop === 'piano') {
+		osc1.type = 'triangle';
+		osc2.type = 'sine';
+		osc2.frequency.value = freq * 2.01;
+	} else if (currentStop === 'custom') {
+		osc1.type = customParams.osc1;
+		osc2.type = customParams.osc2;
+		osc1.detune.value = customParams.detune;
+		osc2.detune.value = -customParams.detune;
+		filter.frequency.value = customParams.filter;
+	} else {
+		osc1.type = 'sawtooth';
+		osc2.type = 'sine';
+		osc2.frequency.value = freq * 2;
+	}
+
+	osc1.frequency.value = freq;
+
+	gain.gain.setValueAtTime(0.001, now);
+	gain.gain.linearRampToValueAtTime(velocity, now + 0.04);
+	gain.gain.linearRampToValueAtTime(velocity * 0.52, now + duration / 1000 * 0.68);
+	gain.gain.linearRampToValueAtTime(0.001, now + duration / 1000 + 0.5);
+
+	osc1.connect(filter);
+	osc2.connect(filter);
+	filter.connect(gain);
+	gain.connect(audioContext.destination);
+
+	osc1.start(now);
+	osc2.start(now);
+	osc1.stop(now + duration / 1000 + 0.6);
+	osc2.stop(now + duration / 1000 + 0.6);
+
+	flameIntensity = Math.min(3.5, flameIntensity + 0.9);
+
+	if (midiOutput) {
+		const note = Math.round(69 + 12 * Math.log2(freq / 440));
+		const ch = 0x90 | (midiChannel - 1);
+		midiOutput.send([ch, note, Math.floor(velocity * 127)]);
+		setTimeout(() => {
+			if (midiOutput) midiOutput.send([0x80 | (midiChannel - 1), note, 0]);
+		}, duration);
+	}
+}
+
+const hymns = {
+	corjesu: [{freq:261.63,duration:600},{freq:329.63,duration:600},{freq:392,duration:1200},{freq:440,duration:600},{freq:392,duration:600},{freq:329.63,duration:1200},{freq:261.63,duration:800},{freq:293.66,duration:400},{freq:329.63,duration:800},{freq:392,duration:1600}],
+	avemaria: [{freq:523.25,duration:800},{freq:587.33,duration:400},{freq:659.25,duration:800},{freq:783.99,duration:1200},{freq:698.46,duration:600},{freq:659.25,duration:600},{freq:587.33,duration:800},{freq:523.25,duration:1600}],
+	tantum: [{freq:392,duration:600},{freq:440,duration:600},{freq:493.88,duration:600},{freq:523.25,duration:1200},{freq:493.88,duration:600},{freq:440,duration:600},{freq:392,duration:1200}],
+	panis: [{freq:349.23,duration:800},{freq:392,duration:400},{freq:440,duration:800},{freq:466.16,duration:1200},{freq:440,duration:800},{freq:392,duration:800},{freq:349.23,duration:1600}],
+	amazing: [{freq:392,duration:600},{freq:523.25,duration:900},{freq:659.25,duration:600},{freq:523.25,duration:600},{freq:659.25,duration:1200},{freq:587.33,duration:600},{freq:523.25,duration:900}]
+};
+
+function playSong(notes) {
+	if (isPlayingSong || !notes.length) return;
+	initAudio();
+	isPlayingSong = true;
+	const useAbs = typeof notes[0].startTime === 'number';
+	if (useAbs) {
+		let maxEnd = 0;
+		notes.forEach(n => {
+			const v = n.velocity != null ? n.velocity : 0.72;
+			const id = setTimeout(() => playNote(n.freq, n.duration || 800, v), n.startTime);
+			songTimeoutIds.push(id);
+			maxEnd = Math.max(maxEnd, n.startTime + (n.duration || 800));
+		});
+		songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, maxEnd + 800));
+	} else {
+		let time = 0;
+		notes.forEach(n => {
+			const id = setTimeout(() => playNote(n.freq, n.duration || 800, 0.72), time);
+			songTimeoutIds.push(id);
+			time += (n.duration || 800) * 0.92;
+		});
+		songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, time + 800));
+	}
+}
+
+function stopSong() {
+	songTimeoutIds.forEach(clearTimeout);
+	songTimeoutIds = [];
+	isPlayingSong = false;
+}
+
+function initPipes() {
+	pipes = [];
+	const startX = heartX - 280;
+	for (let i = 0; i < 13; i++) {
+		const x = startX + i * 45;
+		const height = 170 + Math.abs(i - 6) * -28 + Math.random() * 35;
+		pipes.push({ x, height, glow: 0 });
+	}
+}
+
+function drawSacredHeart() {
+	ctx.save();
+	ctx.translate(heartX, heartY);
+	ctx.scale(heartScale, heartScale);
+	ctx.fillStyle = '#8b0000';
+	ctx.strokeStyle = '#ffd700';
+	ctx.lineWidth = 18;
+	ctx.beginPath();
+	ctx.moveTo(0, 80);
+	ctx.bezierCurveTo(-110, -40, -140, 60, 0, 160);
+	ctx.bezierCurveTo(140, 60, 110, -40, 0, 80);
+	ctx.fill();
+	ctx.stroke();
+
+	ctx.fillStyle = '#ff4444';
+	ctx.beginPath();
+	ctx.moveTo(0, 95);
+	ctx.bezierCurveTo(-85, 10, -105, 75, 0, 135);
+	ctx.bezierCurveTo(105, 75, 85, 10, 0, 95);
+	ctx.fill();
+	ctx.restore();
+}
+
+function drawPipes() {
+	pipes.forEach(p => {
+		const g = Math.max(0, p.glow);
+		ctx.fillStyle = '#c0c0c0';
+		ctx.fillRect(p.x - 14, heartY - p.height - 42, 28, p.height);
+		ctx.fillStyle = '#b8860b';
+		ctx.fillRect(p.x - 18, heartY - p.height - 58, 36, 24);
+		ctx.fillStyle = `rgba(255,255,200,${0.5 + g})`;
+		ctx.fillRect(p.x - 11, heartY - p.height - 48, 9, p.height);
+		p.glow *= 0.89;
+	});
+}
+
+function drawKeys() {
+	manuals.forEach(man => {
+		const minY = Math.min(...man.keys.map(k => k.y - (k.isBlack ? 16 : 0) - k.height / 2));
+		ctx.save();
+		ctx.fillStyle = 'rgba(255,215,0,0.75)';
+		ctx.font = 'bold 14px Cinzel';
+		ctx.textAlign = 'left';
+		ctx.fillText(man.name, 24, minY - 10);
+		ctx.restore();
+	});
+
+	flatKeys.forEach(k => {
+		if (!k.isBlack) {
+			ctx.save();
+			ctx.translate(k.x, k.y);
+			ctx.fillStyle = k.pressed ? '#ddd' : '#eee';
+			ctx.fillRect(-k.width / 2, -k.height / 2, k.width, k.height);
+			ctx.strokeStyle = '#ffd700';
+			ctx.lineWidth = 4;
+			ctx.strokeRect(-k.width / 2 + 4, -k.height / 2 + 4, k.width - 8, k.height - 8);
+			ctx.fillStyle = '#4a0000';
+			ctx.font = 'bold 12px Cinzel';
+			ctx.textAlign = 'center';
+			ctx.fillText(k.label, 0, 28);
+			ctx.restore();
+		}
+	});
+	flatKeys.forEach(k => {
+		if (k.isBlack) {
+			ctx.save();
+			ctx.translate(k.x + k.offset, k.y - 14);
+			ctx.fillStyle = k.pressed ? '#222' : '#111';
+			ctx.fillRect(-k.width / 2, -k.height / 2, k.width, k.height);
+			ctx.strokeStyle = '#ffd700';
+			ctx.lineWidth = 3;
+			ctx.strokeRect(-k.width / 2 + 3, -k.height / 2 + 3, k.width - 6, k.height - 6);
+			ctx.restore();
+		}
+	});
+}
+
+function drawFrame() {
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	const grad = ctx.createRadialGradient(heartX, heartY + 80, 120, heartX, heartY + 320, 520);
+	grad.addColorStop(0, 'rgba(255,90,90,0.14)');
+	grad.addColorStop(1, 'transparent');
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	drawPipes();
+	drawSacredHeart();
+	drawKeys();
+
+	heartScale = 1 + Math.sin(Date.now() / 920) * 0.013;
+	flameIntensity = Math.max(0, flameIntensity * 0.87);
+}
+
+function animate() {
+	drawFrame();
+	requestAnimationFrame(animate);
+}
+
+function hitTestKey(pos) {
+	for (let i = flatKeys.length - 1; i >= 0; i--) {
+		const key = flatKeys[i];
+		const kx = key.x + (key.isBlack ? key.offset : 0);
+		const ky = key.y + (key.isBlack ? -14 : 0);
+		if (Math.abs(pos.x - kx) < key.width / 2 + 12 && Math.abs(pos.y - ky) < key.height / 2 + 12) {
+			return key;
+		}
+	}
+	return null;
+}
+
+function handleStart(e) {
+	e.preventDefault();
+	initAudio();
+	const rect = canvas.getBoundingClientRect();
+	const scaleX = canvas.width / rect.width;
+	const scaleY = canvas.height / rect.height;
+	const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+	const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+	const pos = {
+		x: (clientX - rect.left) * scaleX,
+		y: (clientY - rect.top) * scaleY
+	};
+
+	const key = hitTestKey(pos);
+	if (key) {
+		key.pressed = true;
+		playNote(key.freq, 1350, 0.8);
+		flameIntensity = 1.7;
+	}
+}
+
+function handleEnd() {
+	flatKeys.forEach(k => { k.pressed = false; });
+}
+
+function handleKeyDown(e) {
+	if (e.repeat) return;
+	const k = keyBindings[e.key.toLowerCase()];
+	if (e.key === '\\') {
+		const bk = keyBindings['\\'];
+		if (bk) {
+			bk.pressed = true;
+			playNote(bk.freq, 950, 0.8);
+			flameIntensity = 1.6;
+		}
+		return;
+	}
+	if (k) {
+		k.pressed = true;
+		playNote(k.freq, 950, 0.8);
+		flameIntensity = 1.6;
+	}
+}
+
+function handleKeyUp(e) {
+	let k = keyBindings[e.key.toLowerCase()];
+	if (e.key === '\\') k = keyBindings['\\'];
+	if (k) k.pressed = false;
+}
+
+async function connectMIDI() {
+	if (!navigator.requestMIDIAccess) return alert('Web MIDI not supported. Use Chrome or Edge.');
+	try {
+		const midi = await navigator.requestMIDIAccess();
+		document.getElementById('midi-status').textContent = '✅ MIDI Connected';
+		midiOutput = Array.from(midi.outputs.values())[0];
+	} catch (err) {
+		alert('MIDI connection failed');
+	}
+}
+
+function parseMelodyLine(parts) {
+	const noteStr = parts[0];
+	const m = noteStr.match(/^([A-Ga-g])([#b]?)(\d+)/);
+	if (!m) return null;
+	let pc = LETTER_PC[m[1].toUpperCase()];
+	if (m[2] === '#') pc++;
+	if (m[2] === 'b') pc--;
+	const oct = parseInt(m[3], 10);
+	const midi = (oct + 1) * 12 + pc;
+	const freq = midiToFreq(midi);
+	return { freq, duration: parseFloat(parts[1]) || 800 };
+}
+
+function updateLayoutUI() {
+	const sel = document.getElementById('keyboard-layout').value;
+	document.getElementById('layout-custom-wrap').style.display = sel === 'custom' ? 'block' : 'none';
+}
+
+function applyLayoutFromSelect() {
+	const sel = document.getElementById('keyboard-layout').value;
+	const json = document.getElementById('keyboard-json').value || DEFAULT_CUSTOM_JSON;
+	rebuildFromLayout(sel, json);
+}
+
+canvas.addEventListener('mousedown', handleStart);
+canvas.addEventListener('touchstart', handleStart, { passive: false });
+window.addEventListener('mouseup', handleEnd);
+window.addEventListener('touchend', handleEnd);
+window.addEventListener('keydown', handleKeyDown);
+window.addEventListener('keyup', handleKeyUp);
+
+document.getElementById('midi-connect').onclick = connectMIDI;
+document.getElementById('organ-stop').onchange = e => {
+	currentStop = e.target.value;
+	document.getElementById('custom-presets').style.display = currentStop === 'custom' ? 'block' : 'none';
+};
+document.getElementById('midi-channel').onchange = e => { midiChannel = parseInt(e.target.value, 10); };
+
+document.getElementById('keyboard-layout').onchange = () => {
+	updateLayoutUI();
+	applyLayoutFromSelect();
+};
+
+document.getElementById('apply-keyboard-json').onclick = () => {
+	document.getElementById('keyboard-layout').value = 'custom';
+	updateLayoutUI();
+	rebuildFromLayout('custom', document.getElementById('keyboard-json').value);
+};
+
+document.getElementById('osc1').oninput = e => {
+	const v = OSC_TYPES[parseInt(e.target.value, 10)];
+	customParams.osc1 = v;
+	document.getElementById('osc1-val').textContent = v;
+};
+document.getElementById('osc2').oninput = e => {
+	const v = OSC_TYPES[parseInt(e.target.value, 10)];
+	customParams.osc2 = v;
+	document.getElementById('osc2-val').textContent = v;
+};
+document.getElementById('filter').oninput = e => {
+	customParams.filter = parseInt(e.target.value, 10);
+	document.getElementById('filter-val').textContent = customParams.filter;
+};
+document.getElementById('detune').oninput = e => {
+	customParams.detune = parseInt(e.target.value, 10);
+	document.getElementById('detune-val').textContent = customParams.detune;
+};
+
+document.getElementById('chord').onclick = () => {
+	initAudio();
+	[261.63, 329.63, 392, 523.25].forEach(f => playNote(f, 2200, 0.55));
+	flameIntensity = 2.5;
+};
+document.getElementById('corjesu').onclick = () => { stopSong(); playSong(hymns.corjesu); };
+document.getElementById('avemaria').onclick = () => { stopSong(); playSong(hymns.avemaria); };
+document.getElementById('tantum').onclick = () => { stopSong(); playSong(hymns.tantum); };
+document.getElementById('panis').onclick = () => { stopSong(); playSong(hymns.panis); };
+document.getElementById('amazing').onclick = () => { stopSong(); playSong(hymns.amazing); };
+document.getElementById('stop').onclick = stopSong;
+document.getElementById('reset').onclick = () => {
+	stopSong();
+	flameIntensity = 0;
+	flatKeys.forEach(k => { k.pressed = false; });
+	pipes.forEach(p => { p.glow = 0; });
+};
+document.getElementById('play-custom').onclick = () => {
+	stopSong();
+	const lines = document.getElementById('custom-input').value.trim().split('\n');
+	const melody = [];
+	lines.forEach(line => {
+		const parts = line.trim().split(/\s+/);
+		if (parts[0]) {
+			const n = parseMelodyLine(parts);
+			if (n) melody.push(n);
+		}
+	});
+	if (melody.length) playSong(melody);
+};
+
+document.getElementById('midi-upload').onchange = async (e) => {
+	const file = e.target.files[0];
+	if (!file) return;
+	try {
+		const buf = await file.arrayBuffer();
+		if (typeof parseMidiFile !== 'function') {
+			alert('MIDI parser not loaded (midi-parser.js).');
+			return;
+		}
+		const melody = parseMidiFile(buf);
+		if (melody.length) {
+			stopSong();
+			playSong(melody);
+		} else {
+			alert('No notes found in MIDI file.');
+		}
+	} catch (err) {
+		alert('Could not read MIDI file.');
+	}
+	e.target.value = '';
+};
+
+document.getElementById('keyboard-json').value = DEFAULT_CUSTOM_JSON;
+updateLayoutUI();
+initPipes();
+applyLayoutFromSelect();
+animate();
+</script>
+</body>
+</html>

@@ -98,6 +98,14 @@
 			<button id="stop">STOP</button>
 			<button id="reset">RESET</button>
 		</div>
+
+		<div style="margin: 22px auto; max-width: 720px; padding: 18px; background: rgba(0,0,0,0.35); border-radius: 12px; border: 2px solid #b8860b;">
+			<strong>Import MIDI</strong><br>
+			<label style="cursor:pointer; display:inline-block; margin-top:10px; background:#4a0000; color:#ffd700; border:3px solid #ffd700; padding:12px 22px; border-radius:6px;">
+				📤 Choose .mid file
+				<input type="file" id="midi-upload" accept=".mid,.midi" style="display:none;">
+			</label>
+		</div>
 		
 		<div class="info">
 			Click or drag the lower keys to play • Sacred organ sound with natural envelope<br>
@@ -105,6 +113,7 @@
 		</div>
 	</div>
 
+	<script src="midi-parser.js"></script>
 	<script>
 		const canvas = document.getElementById('canvas');
 		const ctx = canvas.getContext('2d');
@@ -175,28 +184,38 @@
 			flameIntensity = 1.8;
 		}
 		
-		// Simple melody player
-		function playSong(notes) {  // notes = array of {freq, duration}
-			if (isPlayingSong) return;
+		// Melody player — hymns use sequential notes; MIDI import uses startTime for timing
+		function playSong(notes) {
+			if (isPlayingSong || !notes.length) return;
 			initAudio();
 			isPlayingSong = true;
-			let time = 0;
-			
-			notes.forEach(note => {
-				const id = setTimeout(() => {
-					playNote(note.freq, note.duration, 0.65);
-					flameIntensity = Math.min(2.2, flameIntensity + 0.6);
-					// Light up a random pipe
-					if (pipes.length) pipes[Math.floor(Math.random() * pipes.length)].glow = 1.4;
-				}, time);
-				songTimeoutIds.push(id);
-				time += note.duration * 0.92; // slight overlap for legato feel
-			});
-			
-			// End song
-			setTimeout(() => {
-				isPlayingSong = false;
-			}, time + 800);
+			const useAbs = typeof notes[0].startTime === 'number';
+			if (useAbs) {
+				let maxEnd = 0;
+				notes.forEach(note => {
+					const v = note.velocity != null ? note.velocity : 0.65;
+					const id = setTimeout(() => {
+						playNote(note.freq, note.duration, v);
+						flameIntensity = Math.min(2.2, flameIntensity + 0.6);
+						if (pipes.length) pipes[Math.floor(Math.random() * pipes.length)].glow = 1.4;
+					}, note.startTime);
+					songTimeoutIds.push(id);
+					maxEnd = Math.max(maxEnd, note.startTime + note.duration);
+				});
+				songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, maxEnd + 800));
+			} else {
+				let time = 0;
+				notes.forEach(note => {
+					const id = setTimeout(() => {
+						playNote(note.freq, note.duration, 0.65);
+						flameIntensity = Math.min(2.2, flameIntensity + 0.6);
+						if (pipes.length) pipes[Math.floor(Math.random() * pipes.length)].glow = 1.4;
+					}, time);
+					songTimeoutIds.push(id);
+					time += note.duration * 0.92;
+				});
+				songTimeoutIds.push(setTimeout(() => { isPlayingSong = false; }, time + 800));
+			}
 		}
 		
 		// "Cor Jesu" – reverent original melody (in C major)
@@ -450,6 +469,28 @@
 			if (e.key.toLowerCase() === "s") {
 				document.getElementById('stop').click();
 			}
+		});
+
+		document.getElementById('midi-upload').addEventListener('change', async (e) => {
+			const file = e.target.files[0];
+			if (!file) return;
+			try {
+				const buf = await file.arrayBuffer();
+				if (typeof parseMidiFile !== 'function') {
+					alert('MIDI parser not loaded (midi-parser.js).');
+					return;
+				}
+				const melody = parseMidiFile(buf);
+				if (melody.length) {
+					stopSong();
+					playSong(melody);
+				} else {
+					alert('No notes found in MIDI file.');
+				}
+			} catch (err) {
+				alert('Could not read MIDI file.');
+			}
+			e.target.value = '';
 		});
 		
 		// Initialize everything
