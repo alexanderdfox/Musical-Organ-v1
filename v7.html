@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sacred Heart Pipe Organ — Version 7</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:wght@700&display=swap');
+* { box-sizing: border-box; }
+:root, [data-theme="night"] {
+	--bg-grad: radial-gradient(circle at center, #2a0a0a, #0a0a1f);
+	--accent: #ffd700;
+	--panel: rgba(0,0,0,0.45);
+	--heart-glow: rgba(255,90,90,0.14);
+}
+[data-theme="day"] {
+	--bg-grad: radial-gradient(circle at 30% 20%, #3a2a1a, #1a1a2e);
+	--accent: #c9a227;
+	--panel: rgba(40,30,20,0.55);
+	--heart-glow: rgba(255,160,120,0.12);
+}
+[data-theme="vigil"] {
+	--bg-grad: radial-gradient(circle at center, #0a0518, #000015);
+	--accent: #a8b8ff;
+	--panel: rgba(10,10,40,0.6);
+	--heart-glow: rgba(100,80,200,0.15);
+}
+body {
+	margin: 0; padding: 0;
+	min-height: 100dvh;
+	background: var(--bg-grad);
+	font-family: 'Cinzel', serif;
+	color: var(--accent);
+	touch-action: manipulation;
+}
+.container {
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 20px 12px 40px;
+	text-align: center;
+}
+h1 {
+	font-family: 'Playfair Display', serif;
+	font-size: clamp(2.4rem, 9vw, 3.4rem);
+	margin: 10px 0 8px;
+	text-shadow: 0 0 30px #ff3333, 0 0 60px #ffd700;
+	letter-spacing: 4px;
+}
+.subtitle {
+	font-size: 1.05rem;
+	margin-bottom: 25px;
+	opacity: 0.9;
+	font-style: italic;
+}
+#canvas {
+	width: 100%;
+	max-width: 920px;
+	height: auto;
+	border: 10px solid #4a2c0f;
+	border-image: linear-gradient(var(--accent), #b8860b) 1;
+	border-radius: 18px;
+	box-shadow: 0 0 0 12px #1a0f00,
+				0 0 70px rgba(255, 80, 80, 0.65),
+				inset 0 0 60px rgba(255, 215, 0, 0.2);
+	background: #0f0505;
+	display: block;
+	margin: 0 auto 25px;
+	touch-action: none;
+}
+.controls {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+	flex-wrap: wrap;
+	margin-bottom: 15px;
+}
+button {
+	background: linear-gradient(#8b0000, #4a0000);
+	color: #ffd700;
+	border: 3px solid #ffd700;
+	padding: 14px 22px;
+	font-family: 'Cinzel', serif;
+	font-size: 1.02rem;
+	cursor: pointer;
+	box-shadow: 0 6px 0 #2a0000;
+	border-radius: 6px;
+	min-width: 130px;
+}
+button:active {
+	transform: translateY(4px);
+	box-shadow: 0 2px 0 #2a0000;
+}
+#midi-status { margin: 8px 0; font-size: 0.95rem; }
+.select-container { margin: 12px 0; }
+#organ-stop, #midi-channel, #keyboard-layout {
+	background: linear-gradient(#4a0000, #2a0000);
+	color: #ffd700;
+	border: 3px solid #ffd700;
+	padding: 12px 20px;
+	font-family: 'Cinzel', serif;
+	font-size: 1.05rem;
+	border-radius: 6px;
+	max-width: 100%;
+}
+.preset-section {
+	background: rgba(0,0,0,0.45);
+	border-radius: 14px;
+	padding: 18px;
+	margin: 20px auto;
+	max-width: 720px;
+	display: none;
+}
+.keyboard-layout-section {
+	background: rgba(0,0,0,0.45);
+	border-radius: 14px;
+	padding: 18px;
+	margin: 20px auto;
+	max-width: 720px;
+	text-align: left;
+}
+.keyboard-layout-section h3 {
+	text-align: center;
+	margin-top: 0;
+}
+.keyboard-layout-section textarea {
+	width: 100%;
+	min-height: 140px;
+	margin-top: 10px;
+	font-family: ui-monospace, monospace;
+	font-size: 0.82rem;
+	background: #1a0a0a;
+	color: #f5e6c8;
+	border: 2px solid #b8860b;
+	border-radius: 8px;
+	padding: 10px;
+	resize: vertical;
+}
+.keyboard-layout-section .hint {
+	font-size: 0.82rem;
+	opacity: 0.88;
+	line-height: 1.5;
+	margin-top: 10px;
+}
+.import-section {
+	background: rgba(0,0,0,0.45);
+	border-radius: 14px;
+	padding: 18px;
+	margin: 20px auto;
+	max-width: 720px;
+}
+.info {
+	margin-top: 25px;
+	font-size: 0.88rem;
+	opacity: 0.85;
+	line-height: 1.6;
+}
+.v7-panel {
+	background: var(--panel);
+	border-radius: 14px;
+	padding: 14px 16px;
+	margin: 14px auto;
+	max-width: 720px;
+	text-align: left;
+	font-size: 0.92rem;
+}
+.v7-panel h3 { text-align: center; margin: 0 0 10px; font-size: 1.05rem; }
+#lyric-display {
+	min-height: 2.2em;
+	font-style: italic;
+	text-align: center;
+	padding: 10px;
+	background: rgba(0,0,0,0.35);
+	border-radius: 8px;
+	margin: 8px 0;
+	color: var(--accent);
+}
+.channel-grid { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; margin: 10px 0; }
+.channel-grid label { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+	button:active { transform: none; }
+}
+</style>
+</head>
+<body data-theme="night">
+<div class="container" role="main">
+	<h1>COR JESU</h1>
+	<div class="subtitle">The Immaculate Heart Pipe Organ — Version 7</div>
+
+	<div class="select-container">
+		<label for="theme-select"><strong>Theme:</strong></label><br>
+		<select id="theme-select" aria-label="Color theme">
+			<option value="night" selected>Night chapel</option>
+			<option value="day">Day chapel</option>
+			<option value="vigil">Vigil (cool)</option>
+		</select>
+	</div>
+
+	<canvas id="canvas" width="920" height="720" role="img" aria-label="Sacred heart and organ keyboards"></canvas>
+
+	<div class="controls" role="toolbar" aria-label="Playback controls">
+		<button type="button" id="chord" aria-label="Play chord">CHORD</button>
+		<button type="button" id="corjesu" aria-label="Play Cor Jesu hymn">COR JESU</button>
+		<button type="button" id="avemaria" aria-label="Play Ave Maria hymn">AVE MARIA</button>
+		<button type="button" id="tantum" aria-label="Play Tantum Ergo hymn">TANTUM ERGO</button>
+		<button type="button" id="panis" aria-label="Play Panis Angelicus hymn">PANIS ANGELICUS</button>
+		<button type="button" id="amazing" aria-label="Play Amazing Grace hymn">AMAZING GRACE</button>
+		<button type="button" id="stop" aria-label="Stop playback">STOP</button>
+		<button type="button" id="reset" aria-label="Reset visuals">RESET</button>
+		<button type="button" id="midi-connect" aria-label="Connect MIDI output">🎹 Connect MIDI out</button>
+		<button type="button" id="midi-in-toggle" aria-label="Enable MIDI keyboard input">🎹 MIDI in</button>
+	</div>
+
+	<div id="midi-status" role="status" aria-live="polite">MIDI: Ready</div>
+
+	<div class="select-container">
+		<label for="midi-output-select"><strong>MIDI output device:</strong></label><br>
+		<select id="midi-output-select" aria-label="MIDI output device" disabled>
+			<option value="">Connect first…</option>
+		</select>
+	</div>
+
+	<div id="midi-in-status" class="select-container" style="font-size:0.9rem;" role="status"></div>
+
+	<div class="v7-panel" id="manual-voices-panel">
+		<h3>Per-manual voice</h3>
+		<p class="hint" style="text-align:center;margin:0 0 8px;">Each keyboard can use its own stop. Swell (top manual) level below.</p>
+		<div id="manual-voice-rows"></div>
+		<label for="swell-gain">Swell level (top manual): <span id="swell-val">100</span>%</label><br>
+		<input type="range" id="swell-gain" min="0" max="100" value="100" aria-valuemin="0" aria-valuemax="100">
+	</div>
+
+	<div class="v7-panel">
+		<h3>Layout &amp; practice</h3>
+		<label><input type="checkbox" id="pedal-mode"> Pedal-friendly keys (wider, shorter on lowest manual)</label><br>
+		<label><input type="checkbox" id="metro-on"> Metronome</label>
+		<label for="metro-bpm" class="select-container" style="display:inline;margin-left:12px;">BPM <input type="number" id="metro-bpm" value="72" min="30" max="200" style="width:4em;background:#2a0000;color:var(--accent);border:2px solid var(--accent);"></label>
+		<label><input type="checkbox" id="metro-click-import" title="Short click when imported MIDI notes start"> Click on imported notes</label>
+	</div>
+
+	<div class="v7-panel" id="midi-import-options" style="display:none;">
+		<h3>MIDI import filters</h3>
+		<p class="hint">Channels (uncheck to mute). Then confirm play.</p>
+		<div class="channel-grid" id="channel-checkboxes" aria-label="MIDI channels"></div>
+		<label>Loop from ms <input type="number" id="loop-start-ms" value="0" min="0" style="width:5em;"> to <input type="number" id="loop-end-ms" value="0" min="0" style="width:5em;"> (0 end = full length)</label>
+		<div style="margin-top:10px;text-align:center;">
+			<button type="button" id="midi-import-play">Play filtered</button>
+			<button type="button" id="midi-import-cancel">Cancel</button>
+		</div>
+	</div>
+
+	<div id="lyric-display" role="region" aria-label="Lyrics from MIDI file" aria-live="polite"></div>
+
+	<div class="v7-panel">
+		<h3>Record &amp; export</h3>
+		<button type="button" id="record-toggle" aria-label="Toggle recording">● Record</button>
+		<button type="button" id="export-record-midi" aria-label="Export recording as MIDI file">Export recording (.mid)</button>
+		<button type="button" id="export-text-midi" aria-label="Export custom melody text as MIDI">Export text melody (.mid)</button>
+	</div>
+
+	<div class="select-container">
+		<label for="keyboard-layout"><strong>Keyboards:</strong></label><br>
+		<select id="keyboard-layout">
+			<option value="single">Single manual (C3–B4)</option>
+			<option value="dual" selected>Dual manual (Swell + Great)</option>
+			<option value="triple">Triple (Swell + Great + Pedal)</option>
+			<option value="custom">Custom (JSON below)</option>
+		</select>
+	</div>
+
+	<div class="keyboard-layout-section" id="layout-custom-wrap">
+		<h3>Custom keyboards (JSON)</h3>
+		<p class="hint">Array of manuals. Each: <code>name</code>, <code>from</code> and <code>to</code> (e.g. <code>C3</code>, <code>F#4</code>, <code>Bb3</code>), and <code>y</code> (vertical position on canvas, ~320–600). Top manual = smaller <code>y</code>.</p>
+		<textarea id="keyboard-json" spellcheck="false"></textarea>
+		<div style="margin-top:12px; text-align:center;">
+			<button type="button" id="apply-keyboard-json">Apply custom keyboards</button>
+		</div>
+	</div>
+
+	<div class="select-container">
+		<label for="organ-stop"><strong>Default voice (hymns / MIDI in fallback):</strong></label><br>
+		<select id="organ-stop" aria-label="Default organ voice">
+			<option value="diapason">Diapason (Principal)</option>
+			<option value="flute">Flute (Warm)</option>
+			<option value="reed">Reed (Trumpet)</option>
+			<option value="string">String (Viola)</option>
+			<option value="full">Full Chorus</option>
+			<option value="piano">🎹 Piano</option>
+			<option value="custom">Custom Preset</option>
+		</select>
+	</div>
+
+	<div class="select-container">
+		<label for="midi-channel"><strong>MIDI Channel:</strong></label><br>
+		<select id="midi-channel">
+			<option value="1">Channel 1 (Default)</option>
+			<option value="2">Channel 2</option>
+			<option value="3">Channel 3</option>
+			<option value="4">Channel 4</option>
+			<option value="5">Channel 5</option>
+			<option value="6">Channel 6</option>
+			<option value="7">Channel 7</option>
+			<option value="8">Channel 8</option>
+			<option value="9">Channel 9</option>
+			<option value="10">Channel 10 (Drums)</option>
+			<option value="11">Channel 11</option>
+			<option value="12">Channel 12</option>
+			<option value="13">Channel 13</option>
+			<option value="14">Channel 14</option>
+			<option value="15">Channel 15</option>
+			<option value="16">Channel 16</option>
+		</select>
+	</div>
+
+	<div class="preset-section" id="custom-presets">
+		<h3>Custom Preset</h3>
+		<label>Osc1: <span id="osc1-val">sawtooth</span></label>
+		<input type="range" id="osc1" min="0" max="3" value="0">
+		<label>Osc2: <span id="osc2-val">sine</span></label>
+		<input type="range" id="osc2" min="0" max="3" value="1">
+		<label>Filter (Hz): <span id="filter-val">2600</span></label>
+		<input type="range" id="filter" min="800" max="6000" value="2600" step="50">
+		<label>Detune: <span id="detune-val">0</span></label>
+		<input type="range" id="detune" min="-30" max="30" value="0">
+	</div>
+
+	<div class="import-section">
+		<strong>Custom Melody (one note per line)</strong>
+		<textarea id="custom-input" placeholder="C4 800&#10;E4 600&#10;G4 1200&#10;A4 800" aria-label="Custom melody, one note and duration per line"></textarea>
+		<div style="margin-top:12px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+			<button id="play-custom">▶ PLAY CUSTOM</button>
+			<label style="cursor:pointer; background:#4a0000; color:#ffd700; border:3px solid #ffd700; padding:14px 26px; border-radius:6px;">
+				📤 Import MIDI File
+				<input type="file" id="midi-upload" accept=".mid,.midi" style="display:none;">
+			</label>
+		</div>
+	</div>
+
+	<div class="info" id="keybind-hint">
+		Tap keys or type — touch pressure affects volume when supported.<br>
+		v7: per-manual voices, swell, MIDI in/out, themes, metronome, lyrics from .mid, channel filter, export MIDI.<br>
+		Reduced motion: respect system “reduce motion” for gentler heart animation.
+	</div>
+</div>
+
+<script src="midi-parser.js"></script>
+<script src="v7-app.js"></script>
+
+</body>
+</html>

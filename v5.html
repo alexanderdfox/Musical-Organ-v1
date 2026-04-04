@@ -212,6 +212,21 @@ let midiChannel = 1;
 
 const keyMap = {'a':0,'s':1,'d':2,'f':3,'g':4,'h':5,'j':6,'k':7,'l':8,';':9,"'":10,'\\':11,'z':12,'x':13};
 
+const LETTER_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+function parseMelodyLine(parts) {
+	const noteStr = parts[0];
+	const m = noteStr.match(/^([A-Ga-g])([#b]?)(\d+)/);
+	if (!m) return null;
+	let pc = LETTER_PC[m[1].toUpperCase()];
+	if (m[2] === '#') pc++;
+	if (m[2] === 'b') pc--;
+	const oct = parseInt(m[3], 10);
+	const midi = (oct + 1) * 12 + pc;
+	const freq = 440 * Math.pow(2, (midi - 69) / 12);
+	return { freq: freq, duration: parseFloat(parts[1]) || 800 };
+}
+
 let customParams = { osc1: 'sawtooth', osc2: 'sine', filter: 2600, detune: 0 };
 
 // ====================== AUDIO ======================
@@ -486,7 +501,27 @@ window.addEventListener('keydown', handleKeyDown);
 window.addEventListener('keyup', handleKeyUp);
 
 document.getElementById('midi-connect').onclick = connectMIDI;
-document.getElementById('organ-stop').onchange = e => currentStop = e.target.value;
+document.getElementById('organ-stop').onchange = e => {
+	currentStop = e.target.value;
+	document.getElementById('custom-presets').style.display = currentStop === 'custom' ? 'block' : 'none';
+};
+const OSC_TYPES = ['sawtooth', 'square', 'triangle', 'sine'];
+document.getElementById('osc1').oninput = e => {
+	customParams.osc1 = OSC_TYPES[parseInt(e.target.value, 10)];
+	document.getElementById('osc1-val').textContent = customParams.osc1;
+};
+document.getElementById('osc2').oninput = e => {
+	customParams.osc2 = OSC_TYPES[parseInt(e.target.value, 10)];
+	document.getElementById('osc2-val').textContent = customParams.osc2;
+};
+document.getElementById('filter').oninput = e => {
+	customParams.filter = parseInt(e.target.value, 10);
+	document.getElementById('filter-val').textContent = customParams.filter;
+};
+document.getElementById('detune').oninput = e => {
+	customParams.detune = parseInt(e.target.value, 10);
+	document.getElementById('detune-val').textContent = customParams.detune;
+};
 document.getElementById('midi-channel').onchange = e => midiChannel = parseInt(e.target.value);
 
 // Button listeners
@@ -498,7 +533,19 @@ document.getElementById('panis').onclick = () => { stopSong(); playSong(hymns.pa
 document.getElementById('amazing').onclick = () => { stopSong(); playSong(hymns.amazing); };
 document.getElementById('stop').onclick = stopSong;
 document.getElementById('reset').onclick = () => { stopSong(); flameIntensity = 0; keys.forEach(k => k.pressed = false); pipes.forEach(p => p.glow = 0); };
-document.getElementById('play-custom').onclick = () => { /* custom logic */ };
+document.getElementById('play-custom').onclick = () => {
+	stopSong();
+	const lines = document.getElementById('custom-input').value.trim().split('\n');
+	const melody = [];
+	lines.forEach(line => {
+		const parts = line.trim().split(/\s+/);
+		if (parts[0]) {
+			const n = parseMelodyLine(parts);
+			if (n) melody.push(n);
+		}
+	});
+	if (melody.length) playSong(melody);
+};
 
 document.getElementById('midi-upload').onchange = async (e) => {
 	const file = e.target.files[0];
@@ -521,6 +568,9 @@ document.getElementById('midi-upload').onchange = async (e) => {
 	}
 	e.target.value = '';
 };
+
+document.getElementById('custom-presets').style.display =
+	document.getElementById('organ-stop').value === 'custom' ? 'block' : 'none';
 
 // Initialize
 initPipes();

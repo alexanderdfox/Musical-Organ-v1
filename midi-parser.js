@@ -1,8 +1,8 @@
 /**
- * Standard MIDI File (SMF) → note list for the organ players.
- * Each note: { freq, duration, startTime, velocity }
- * - startTime / duration in milliseconds (from tempo map + ticks)
- * - velocity 0–1 for Web Audio gain
+ * Standard MIDI File (SMF) parsing for organ players.
+ * parseMidiFile(ab) → array of notes (backward compatible).
+ * parseMidiImport(ab) → { notes, lyrics, channelsPresent, ticksPerQuarter }
+ * Each note: freq, duration, startTime, velocity, midiNote (0–127), channel (1–16)
  */
 (function (global) {
 	'use strict';
@@ -28,16 +28,28 @@
 		return 9;
 	}
 
-	global.parseMidiFile = function parseMidiFile(arrayBuffer) {
+	function decodeMetaText(dv, o, len) {
+		let s = '';
+		for (let i = 0; i < len; i++) s += String.fromCharCode(dv.getUint8(o + i));
+		return s.replace(/\0/g, '').trim();
+	}
+
+	function parseStandardMidiBuffer(arrayBuffer) {
 		const dv = new DataView(arrayBuffer);
-		if (dv.byteLength < 22) return [];
+		if (dv.byteLength < 22) {
+			return { notes: [], lyrics: [], channelsPresent: [], ticksPerQuarter: 480 };
+		}
 
 		const magic =
 			String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
-		if (magic !== 'MThd') return [];
+		if (magic !== 'MThd') {
+			return { notes: [], lyrics: [], channelsPresent: [], ticksPerQuarter: 480 };
+		}
 
 		const headerLen = dv.getUint32(4);
-		if (headerLen < 6 || 8 + headerLen > dv.byteLength) return [];
+		if (headerLen < 6 || 8 + headerLen > dv.byteLength) {
+			return { notes: [], lyrics: [], channelsPresent: [], ticksPerQuarter: 480 };
+		}
 
 		const ntrks = dv.getUint16(10);
 		let division = dv.getUint16(12);
@@ -46,6 +58,7 @@
 
 		let o = 8 + headerLen;
 		const events = [];
+		const lyricTicks = [];
 		let maxTick = 0;
 
 		for (let tr = 0; tr < ntrks; tr++) {
@@ -93,6 +106,9 @@
 						const us =
 							(dv.getUint8(o) << 16) | (dv.getUint8(o + 1) << 8) | dv.getUint8(o + 2);
 						if (us > 0) events.push({ type: 'tempo', tick: absTick, us: us });
+					} else if ((metaType === 0x01 || metaType === 0x05) && lenR.val > 0) {
+						const text = decodeMetaText(dv, o, lenR.val);
+						if (text) lyricTicks.push({ tick: absTick, text: text, kind: metaType });
 					}
 					o += lenR.val;
 					continue;
@@ -171,6 +187,14 @@
 			return ms + (tick - prevTick) * (usPerQ / 1000) / ticksPerQuarter;
 		}
 
+		const lyrics = lyricTicks
+			.map(function (L) {
+				return { startTime: tickToMs(L.tick), text: L.text };
+			})
+			.sort(function (a, b) {
+				return a.startTime - b.startTime;
+			});
+
 		const stacks = new Map();
 		function stackKey(ch, note) {
 			return (ch << 8) | note;
@@ -178,6 +202,7 @@
 
 		const notesOut = [];
 		const maxNotes = 8000;
+		const chUsed = new Set();
 
 		for (let i = 0; i < events.length; i++) {
 			const ev = events[i];
@@ -198,11 +223,14 @@
 				let dur = Math.max(40, endMs - startMs);
 				if (dur > 60000) dur = 60000;
 				const vel = Math.min(1, Math.max(0.12, start.vel / 127));
+				chUsed.add(ev.ch + 1);
 				notesOut.push({
 					freq: midiToFreq(ev.note),
 					duration: dur,
 					startTime: startMs,
-					velocity: vel
+					velocity: vel,
+					midiNote: ev.note,
+					channel: ev.ch + 1
 				});
 				if (notesOut.length >= maxNotes) break;
 			}
@@ -214,6 +242,8 @@
 				while (st.length && notesOut.length < maxNotes) {
 					const start = st.shift();
 					const note = mapKey & 0xff;
+					const ch = (mapKey >> 8) & 0x0f;
+					chUsed.add(ch + 1);
 					const startMs = tickToMs(start.tick);
 					const endMs = tickToMs(endTick);
 					let dur = Math.max(120, endMs - startMs);
@@ -223,7 +253,9 @@
 						freq: midiToFreq(note),
 						duration: dur,
 						startTime: startMs,
-						velocity: vel
+						velocity: vel,
+						midiNote: note,
+						channel: ch + 1
 					});
 				}
 			});
@@ -234,6 +266,21 @@
 			return a.freq - b.freq;
 		});
 
-		return notesOut;
+		const channelsPresent = Array.from(chUsed).sort(function (a, b) {
+			return a - b;
+		});
+
+		return {
+			notes: notesOut,
+			lyrics: lyrics,
+			channelsPresent: channelsPresent,
+			ticksPerQuarter: ticksPerQuarter
+		};
+	}
+
+	global.parseMidiImport = parseStandardMidiBuffer;
+
+	global.parseMidiFile = function parseMidiFile(arrayBuffer) {
+		return parseStandardMidiBuffer(arrayBuffer).notes;
 	};
 })(typeof window !== 'undefined' ? window : globalThis);

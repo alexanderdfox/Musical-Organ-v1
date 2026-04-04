@@ -11,8 +11,9 @@ How to use the organ in the browser as a **MIDI source** for **macOS** or **Wind
 - **`v4.html`**
 - **`v5.html`**
 - **`v6.html`**
+- **`v7.html`** (adds a **MIDI output device** menu after you connect)
 
-Open one of these from the same folder as the rest of the project (or start from **`index.html`** and choose that version).
+Open one of these from the same folder as the rest of the project (or start from **`index.html`** and choose that version). For **v7**, keep **`v7-app.js`** next to **`v7.html`**.
 
 **Note:** **`v1.html`**, **`v2.html`**, and **`v3.html`** can **import `.mid` files** (with **`midi-parser.js`** next to the HTML) but do **not** expose the Connect MIDI / Web MIDI output feature.
 
@@ -79,7 +80,7 @@ In **Ableton, FL Studio, Reaper**, etc.:
 
 ## Importing MIDI files (playback in the browser)
 
-On **v1–v6**, **Import MIDI File** uses **`midi-parser.js`**. Keep that file in the **same directory** as the HTML file you open. Playback follows file tempo and note lengths; chords overlap in time when the file contains them.
+On **v1–v7**, **Import MIDI File** uses **`midi-parser.js`**. Keep that file in the **same directory** as the HTML file you open. **v7** also loads **`v7-app.js`** from the same folder. Playback follows file tempo and note lengths; chords overlap in time when the file contains them. **v7** can filter by MIDI channel, loop a time range, show **lyrics** from meta events, and highlight keys during playback.
 
 ---
 
